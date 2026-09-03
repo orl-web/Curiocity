@@ -1,0 +1,32 @@
+{
+  "name": "CurioCity — Curated Audio Walking Guides",
+  "short_name": "CurioCity",
+  "description": "Discover hidden gems with curated audio walking guides by local experts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f3",
+  "theme_color": "#1D9E75",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["travel", "navigation", "education"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1D9E75"/>
+  <g transform="translate(256,256)">
+    <!-- Compass outer ring -->
+    <circle cx="0" cy="0" r="160" fill="none" stroke="white" stroke-width="12"/>
+    <!-- N/S/E/W ticks -->
+    <line x1="0" y1="-160" x2="0" y2="-140" stroke="white" stroke-width="10" stroke-linecap="round"/>
+    <line x1="0" y1="140" x2="0" y2="160" stroke="white" stroke-width="10" stroke-linecap="round"/>
+    <line x1="-160" y1="0" x2="-140" y2="0" stroke="white" stroke-width="10" stroke-linecap="round"/>
+    <line x1="140" y1="0" x2="160" y2="0" stroke="white" stroke-width="10" stroke-linecap="round"/>
+    <!-- Compass needle -->
+    <polygon points="0,-120 -20,0 0,-30 20,0" fill="white"/>
+    <polygon points="0,120 -20,0 0,30 20,0" fill="rgba(255,255,255,0.5)"/>
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="12" fill="white"/>
+  </g>
+</svg>

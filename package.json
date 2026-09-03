@@ -1,0 +1,29 @@
+{
+  "name": "curiocity",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=services/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:api": "npm run build --workspace=services/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "test:api": "npm run test --workspace=services/api",
+    "test:web": "npm run test --workspace=apps/web",
+    "lint": "npm run lint --workspaces",
+    "db:migrate": "npm run db:migrate --workspace=services/api",
+    "db:seed": "npm run db:seed --workspace=services/api"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
