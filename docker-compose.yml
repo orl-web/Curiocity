@@ -5,15 +5,15 @@ services:
     image: postgres:16-alpine
     container_name: curiocity-postgres
     environment:
-      POSTGRES_USER: wanderwise
-      POSTGRES_PASSWORD: wanderwise123
-      POSTGRES_DB: wanderwise
+      POSTGRES_USER: curiocity
+      POSTGRES_PASSWORD: curiocity123
+      POSTGRES_DB: curiocity
     ports:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U wanderwise']
+      test: ['CMD-SHELL', 'pg_isready -U curiocity']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
       - '3001:3001'
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://wanderwise:wanderwise123@postgres:5432/wanderwise
+      DATABASE_URL: postgresql://curiocity:curiocity123@postgres:5432/curiocity
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
       CORS_ORIGIN: http://localhost:3002

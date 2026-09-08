@@ -70,8 +70,16 @@ const paymentLimiter = rateLimit({
 });
 app.use('/api/payments', paymentLimiter);
 
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req: Request, res: Response) => {
+  try {
+    // Verify DB connectivity
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+    await db.execute(sql`SELECT 1`);
+    res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date().toISOString() });
+  }
 });
 
 app.get('/api/docs', (req: Request, res: Response) => {
