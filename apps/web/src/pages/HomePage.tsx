@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { guides, getCancelToken } from '../services/api'
 import SEO from '../components/SEO'
@@ -186,7 +186,7 @@ export default function HomePage() {
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all ${
+            className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
               activeCategory === cat.id
                 ? 'bg-[#1D9E75] border-[#1D9E75] text-white font-bold'
                 : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
@@ -197,7 +197,7 @@ export default function HomePage() {
         ))}
         <button
           onClick={handleNearMe}
-          className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all ${
+          className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
             nearMeActive
               ? 'bg-[#1D9E75] border-[#1D9E75] text-white font-bold'
               : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
@@ -229,8 +229,8 @@ export default function HomePage() {
         ) : (guidesList || []).length === 0 ? (
           <div role="status" className="text-center py-12 text-[#5f5e5a] dark:text-[#a8a7a0] text-sm">No guides found</div>
         ) : (
-          (guidesList || []).map((guide) => (
-            <GuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
+          (guidesList || []).map((guide, index) => (
+            <GuideCard key={guide.id} guide={guide} index={index} onClick={() => navigate(`/guide/${guide.id}`)} />
           ))
         )}
       </div>
@@ -238,25 +238,86 @@ export default function HomePage() {
   )
 }
 
-function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
-  const categoryColors: Record<string, string> = {
-    food: 'bg-[#E1F5EE] text-[#085041]',
-    architecture: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-    history: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-    art: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-    nature: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+function hashCode(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash |= 0
   }
+  return Math.abs(hash)
+}
+
+const placeholderColors = [
+  ['#1D9E75', '#158563'], ['#E24B4A', '#c43c3c'], ['#BA7517', '#9a6114'],
+  ['#378ADD', '#2d73b8'], ['#8B5CF6', '#7340d9'], ['#EC4899', '#d63384'],
+  ['#F59E0B', '#d97706'], ['#06B6D4', '#0891b2'],
+]
+
+const categoryIcons: Record<string, string> = {
+  food: '🍽', architecture: '🏛', history: '📜', art: '🎨', nature: '🌿', characters: '🧑', general: '📍',
+}
+
+const categoryColors: Record<string, string> = {
+  food: 'bg-[#E1F5EE] text-[#085041]',
+  architecture: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+  history: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+  art: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+  nature: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+  characters: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+  general: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+}
+
+function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => void; index: number }) {
+  const hash = hashCode(guide.id + guide.title)
+  const [bg, accent] = placeholderColors[hash % placeholderColors.length]
+  const icon = categoryIcons[guide.category] || '📍'
+  const isFirstTwo = index < 2
+
+  const mapSvg = useMemo(() => {
+    if (!isFirstTwo) return null
+    const stops = guide.stops || []
+    const valid = stops.filter(s => s.latitude && s.longitude)
+    if (valid.length === 0) return null
+    const lats = valid.map(s => Number(s.latitude))
+    const lngs = valid.map(s => Number(s.longitude))
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+    const pad = 0.005
+    const w = 176, h = 140
+    const toX = (lng: number) => ((lng - (minLng - pad)) / ((maxLng + pad) - (minLng - pad))) * w
+    const toY = (lat: number) => h - ((lat - (minLat - pad)) / ((maxLat + pad) - (minLat - pad))) * h
+    const points = valid.map((s, i) => {
+      const x = toX(Number(s.longitude))
+      const y = toY(Number(s.latitude))
+      return `<circle cx="${x}" cy="${y}" r="8" fill="${i === 0 ? '#E24B4A' : '#1D9E75'}" stroke="white" stroke-width="2"/>` +
+        `<text x="${x}" y="${y + 4}" text-anchor="middle" fill="white" font-size="8" font-weight="700">${i + 1}</text>`
+    }).join('')
+    const pathD = valid.map((s, i) => `${i === 0 ? 'M' : 'L'}${toX(Number(s.longitude))},${toY(Number(s.latitude))}`).join(' ')
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+      `<rect width="${w}" height="${h}" fill="#E8F5E9" rx="8"/>` +
+      `<path d="${pathD}" fill="none" stroke="#1D9E75" stroke-width="2" stroke-dasharray="4,3" opacity="0.6"/>` +
+      points + `</svg>`
+  }, [guide, isFirstTwo])
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[#1D9E75] transition-colors" onClick={onClick}>
+    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[#1D9E75] active:scale-[0.98] transition-all" onClick={onClick}>
       <div className="p-3">
         <div className="flex gap-[11px]">
-          <div className="w-[86px] h-[76px] rounded-lg bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 flex-shrink-0 overflow-hidden">
-            {(guide as any).coverImageUrl || guide.coverImage ? (
+          <div className="w-[86px] h-[76px] rounded-lg border border-black/10 dark:border-white/9 flex-shrink-0 overflow-hidden relative">
+            {isFirstTwo && mapSvg ? (
+              <div dangerouslySetInnerHTML={{ __html: mapSvg }} className="w-full h-full" />
+            ) : (guide as any).coverImageUrl || guide.coverImage ? (
               <img src={(guide as any).coverImageUrl || guide.coverImage} alt="" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-[#b4b2a9] dark:text-[#706f6a] text-xs">
-                {guide.city?.charAt(0) || '?'}
+              <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: `linear-gradient(135deg, ${bg}, ${accent})` }}>
+                {icon}
+              </div>
+            )}
+            {/* Price badge bottom-left on miniature */}
+            {guide.priceModel !== 'free' && (
+              <div className="absolute bottom-1 left-1 px-1.5 py-[2px] rounded-[6px] text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
+                {guide.priceModel === 'paid' ? '€0.99' : 'Ad'}
               </div>
             )}
           </div>
@@ -272,11 +333,15 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
               <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>
                 {guide.category}
               </span>
-              {guide.priceModel === 'free' && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#E1F5EE] text-[#085041]">Free</span>
+              {guide.duration && (
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#f5f5f3] dark:bg-[#272725] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10 dark:border-white/9">
+                  ⏱ {guide.duration}
+                </span>
               )}
-              {guide.priceModel === 'paid' && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#BA7517]/10 text-[#BA7517]">€0.99</span>
+              {guide.distance && (
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#f5f5f3] dark:bg-[#272725] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10 dark:border-white/9">
+                  📏 {guide.distance}
+                </span>
               )}
             </div>
             {Number(guide.rating) > 0 && (

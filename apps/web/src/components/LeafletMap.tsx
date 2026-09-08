@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { getAllOfflineGuides } from '../utils/offlineStorage'
 
 interface Stop {
   name: string
@@ -32,6 +33,22 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
   const markersRef = useRef<L.Marker[]>([])
   const onStopClickRef = useRef(onStopClick)
   onStopClickRef.current = onStopClick
+  const [hasOfflineGuides, setHasOfflineGuides] = useState(false)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+
+  useEffect(() => {
+    getAllOfflineGuides().then(g => setHasOfflineGuides(g.length > 0))
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  const useOfflineTiles = !isOnline && hasOfflineGuides
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return
@@ -40,10 +57,17 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map)
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map)
+    if (useOfflineTiles) {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(map)
+    } else {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map)
+    }
 
     mapInstance.current = map
 
@@ -51,7 +75,7 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
       map.remove()
       mapInstance.current = null
     }
-  }, [])
+  }, [useOfflineTiles])
 
   useEffect(() => {
     const map = mapInstance.current
@@ -97,11 +121,18 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
   }, [stops, activeStop])
 
   return (
-    <div
-      ref={mapRef}
-      style={{ height, width: '100%' }}
-      role="img"
-      aria-label="Map showing guide stops"
-    />
+    <div className="relative">
+      <div
+        ref={mapRef}
+        style={{ height, width: '100%' }}
+        role="img"
+        aria-label="Map showing guide stops"
+      />
+      {useOfflineTiles && (
+        <div className="absolute top-2 left-2 z-[1000] bg-[#FFF3CD] dark:bg-[#3d3522] text-[#664D03] dark:text-[#FFD43B] text-[10px] font-bold px-2 py-1 rounded-md shadow">
+          📡 Offline map
+        </div>
+      )}
+    </div>
   )
 }

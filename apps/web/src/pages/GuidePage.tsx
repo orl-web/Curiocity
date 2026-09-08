@@ -36,6 +36,7 @@ export default function GuidePage() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const [isSavingOffline, setIsSavingOffline] = useState(false)
+  const [isPurchased, setIsPurchased] = useState(false)
 
   useEffect(() => {
     if (id) loadGuide(id)
@@ -236,29 +237,29 @@ export default function GuidePage() {
           </svg>
         </button>
         <span className="flex-1 text-[15px] font-bold">{guide.title}</span>
-        <button onClick={handleShare} aria-label="Share guide" className="cursor-pointer p-1">
+        <button onClick={handleShare} aria-label="Share guide" className="cursor-pointer p-1 active:scale-90 transition-transform">
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="15" cy="4" r="2.5"/><circle cx="5" cy="10" r="2.5"/><circle cx="15" cy="16" r="2.5"/>
             <path d="M7.2 8.8l5.6-3.6M7.2 11.2l5.6 3.6"/>
           </svg>
         </button>
         <div className="relative">
-          <button onClick={() => setShowExportMenu(!showExportMenu)} aria-label="Export guide" className="cursor-pointer p-1">
+          <button onClick={() => setShowExportMenu(!showExportMenu)} aria-label="Export guide" className="cursor-pointer p-1 active:scale-90 transition-transform">
             <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 3v10M6 9l4 4 4-4M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2"/>
             </svg>
           </button>
           {showExportMenu && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl shadow-lg z-50 overflow-hidden min-w-[160px]">
-                <button onClick={() => { exportGpx(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 border-b border-black/5 dark:border-white/5">
+              <div className="fixed inset-0 z-[60]" onClick={() => setShowExportMenu(false)} />
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl shadow-lg z-[70] overflow-hidden min-w-[160px]">
+                <button onClick={() => { exportGpx(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 border-b border-black/5 dark:border-white/5 active:bg-[#E1F5EE] transition-colors">
                   <span className="text-base">🗺</span> Export GPX
                 </button>
-                <button onClick={() => { exportKml(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 border-b border-black/5 dark:border-white/5">
+                <button onClick={() => { exportKml(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 border-b border-black/5 dark:border-white/5 active:bg-[#E1F5EE] transition-colors">
                   <span className="text-base">📍</span> Export KML
                 </button>
-                <button onClick={() => { exportJson(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2">
+                <button onClick={() => { exportJson(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 active:bg-[#E1F5EE] transition-colors">
                   <span className="text-base">📋</span> Export JSON
                 </button>
               </div>
@@ -269,7 +270,7 @@ export default function GuidePage() {
           onClick={handleToggleOffline}
           disabled={isSavingOffline}
           aria-label={isOffline ? 'Remove from offline' : 'Save for offline'}
-          className="cursor-pointer p-1"
+          className="cursor-pointer p-1 active:scale-90 transition-transform"
         >
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke={isOffline ? '#1D9E75' : 'currentColor'} strokeWidth="1.5">
             {isOffline ? (
@@ -282,7 +283,7 @@ export default function GuidePage() {
             )}
           </svg>
         </button>
-        <button onClick={handleSave} aria-label={isSaved ? 'Unsave guide' : 'Save guide'} className="cursor-pointer p-1">
+        <button onClick={handleSave} aria-label={isSaved ? 'Unsave guide' : 'Save guide'} className="cursor-pointer p-1 active:scale-90 transition-transform">
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M5 3h10a1 1 0 011 1v13l-6-3-6 3V4a1 1 0 011-1z" fill={isSaved ? '#1D9E75' : 'none'}/>
           </svg>
@@ -352,8 +353,13 @@ export default function GuidePage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="p-4 flex flex-col gap-3.5">
+      <div className={`flex-1 overflow-y-auto min-h-0 ${(guide.priceModel !== 'free' && !isPurchased) ? 'relative' : ''}`}>
+        {(guide.priceModel !== 'free' && !isPurchased) && (
+          <div className="absolute inset-0 z-20 pointer-events-none" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+            <div className="absolute inset-0 bg-white/40 dark:bg-black/40" />
+          </div>
+        )}
+        <div className={`p-4 flex flex-col gap-3.5 ${(guide.priceModel !== 'free' && !isPurchased) ? 'blur-sm' : ''}`}>
           {/* Guide Info */}
           <div>
             <h1 className="text-xl font-bold leading-[1.3]">{guide.title}</h1>
@@ -602,6 +608,31 @@ export default function GuidePage() {
             )}
           </div>
         </div>
+        {(guide.priceModel !== 'free' && !isPurchased) && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-auto">
+            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-2xl shadow-2xl p-6 mx-6 text-center max-w-[300px]">
+              <div className="text-3xl mb-3">{guide.priceModel === 'paid' ? '🎟' : '📺'}</div>
+              <h3 className="text-lg font-bold mb-2">{guide.priceModel === 'paid' ? 'Unlock this guide' : 'Watch an ad to unlock'}</h3>
+              <p className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] mb-4">
+                {guide.priceModel === 'paid'
+                  ? `Pay €0.99 to get full access to this guide and all its stops.`
+                  : `Watch a short ad to access this guide for free.`}
+              </p>
+              <button
+                onClick={() => setIsPurchased(true)}
+                className="w-full py-2.5 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer active:scale-95 transition-transform"
+              >
+                {guide.priceModel === 'paid' ? '€0.99 — Unlock' : 'Watch Ad'}
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-2 mt-2 rounded-lg bg-transparent text-[#5f5e5a] dark:text-[#a8a7a0] text-[12px] font-bold border-none cursor-pointer"
+              >
+                Go back
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
