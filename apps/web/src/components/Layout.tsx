@@ -1,5 +1,4 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
 
 const exploreItem = { to: '/', label: 'Explore', icon: (active: boolean) => (
   <svg aria-hidden="true" viewBox="0 0 22 22" fill="none" stroke={active ? '#1D9E75' : 'currentColor'} strokeWidth="1.5" className="w-[22px] h-[22px]">
@@ -20,7 +19,6 @@ const profileItem = { to: '/profile', label: 'Profile', icon: (active: boolean) 
 )}
 
 export default function Layout() {
-  const { isAuthenticated } = useAuth()
   const navItems = [exploreItem, mapItem, profileItem]
 
   return (

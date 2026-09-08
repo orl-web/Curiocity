@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticate, optionalAuth } from './middleware/auth';
+import { db } from './db';
+import { sql } from 'drizzle-orm';
 import { guidesRouter } from './routes/guides';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
@@ -72,9 +74,6 @@ app.use('/api/payments', paymentLimiter);
 
 app.get('/health', async (req: Request, res: Response) => {
   try {
-    // Verify DB connectivity
-    const { db } = await import('./db');
-    const { sql } = await import('drizzle-orm');
     await db.execute(sql`SELECT 1`);
     res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
   } catch (err) {

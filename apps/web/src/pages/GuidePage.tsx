@@ -6,7 +6,7 @@ import type { Guide, GuideStop, Review, Comment } from '../types'
 import { useAuth } from '../hooks/useAuth'
 import LeafletMap from '../components/LeafletMap'
 import { exportGpx, exportKml, exportJson } from '../utils/gpsExporters'
-import { saveGuideOffline, isGuideOffline, deleteOfflineGuide } from '../utils/offlineStorage'
+import { saveGuideOffline, isGuideOffline, deleteOfflineGuide, getGuideOffline } from '../utils/offlineStorage'
 
 export default function GuidePage() {
   const { id } = useParams<{ id: string }>()
@@ -170,7 +170,8 @@ export default function GuidePage() {
     try {
       const res = await guides.detail(guideId)
       setGuide(res.data)
-      setIsSaved(res.data.isSaved || false)
+      const saved = await isGuideOffline(guideId)
+      setIsSaved(saved)
     } catch (err: any) {
       if (err?.code === 'ERR_CANCELED') return
       // Try loading from IndexedDB when offline

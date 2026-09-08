@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { guides, ai } from '../services/api'
-import { parseGpsFile, type GpsPoint } from '../utils/gpsParsers'
+import { parseGpsFile } from '../utils/gpsParsers'
 import { parseDescriptionFile } from '../utils/fileParser'
 
 const categories = ['Food', 'Architecture', 'History', 'Art', 'Nature', 'Characters']

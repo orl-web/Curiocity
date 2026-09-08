@@ -62,7 +62,7 @@ export function exportKml(guide: Guide) {
   const placemarks = stops
     .filter((s) => s.latitude != null && s.longitude != null)
     .map(
-      (s, i) => `      <Placemark>
+      (s) => `      <Placemark>
         <name>${sanitizeXml(s.name)}</name>
         <description>${sanitizeXml(s.description || '')}</description>
         <Point>
