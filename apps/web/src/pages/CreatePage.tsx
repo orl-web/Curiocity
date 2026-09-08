@@ -24,6 +24,7 @@ export default function CreatePage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [isImportingGps, setIsImportingGps] = useState(false)
   const [isImportingDesc, setIsImportingDesc] = useState(false)
   const [gpsImportCount, setGpsImportCount] = useState(0)
@@ -44,11 +45,12 @@ export default function CreatePage() {
   const handleGpsImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setImportError(null)
     setIsImportingGps(true)
     try {
       const points = await parseGpsFile(file)
       if (points.length === 0) {
-        alert('No GPS points found in the file.')
+        setImportError('No GPS points found in the file.')
         return
       }
       const importedStops = points.map((p) => ({
@@ -83,11 +85,12 @@ export default function CreatePage() {
   const handleDescImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setImportError(null)
     setIsImportingDesc(true)
     try {
       const text = await parseDescriptionFile(file)
       if (!text.trim()) {
-        alert('No text found in the file.')
+        setImportError('No text found in the file.')
         return
       }
       if (city && category) {
@@ -101,7 +104,7 @@ export default function CreatePage() {
         setDescription(text.trim())
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to import file')
+      setImportError(err.message || 'Failed to import file')
     } finally {
       setIsImportingDesc(false)
       if (descInputRef.current) descInputRef.current.value = ''
@@ -411,6 +414,12 @@ export default function CreatePage() {
 
       {/* Publish Button */}
       <div className="px-4 py-3 bg-white dark:bg-[#1e1e1c] border-t border-black/10 dark:border-white/9 shrink-0">
+        {importError && (
+          <div role="alert" className="mb-2 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center">
+            {importError}
+            <button onClick={() => setImportError(null)} className="ml-2 text-red-500 hover:text-red-700">✕</button>
+          </div>
+        )}
         {publishError && (
           <div role="alert" className="mb-2 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center">{publishError}</div>
         )}

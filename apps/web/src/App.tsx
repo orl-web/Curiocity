@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { AuthProvider } from './hooks/useAuth'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -19,7 +20,7 @@ import LandingPage from './pages/LandingPage'
 
 export default function App() {
   const location = useLocation()
-  const onboardingComplete = localStorage.getItem('onboarding_complete')
+  const [onboardingComplete] = useState(() => localStorage.getItem('onboarding_complete'))
 
   return (
     <ErrorBoundary>

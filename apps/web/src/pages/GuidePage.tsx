@@ -15,7 +15,6 @@ export default function GuidePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeStop, setActiveStop] = useState<number | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
 
   const { user: currentUser, isAuthenticated } = useAuth()
@@ -67,37 +66,6 @@ export default function GuidePage() {
     ]).catch(() => {})
     return () => controller.abort()
   }, [id])
-
-  useEffect(() => {
-    if (!guide) return
-    const prevTitle = document.title
-    document.title = `${guide.title} — CurioCity`
-
-    const meta = (property: string, content: string) => {
-      let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement
-      if (!el) {
-        el = document.createElement('meta')
-        el.setAttribute('property', property)
-        document.head.appendChild(el)
-      }
-      el.setAttribute('content', content)
-      return el
-    }
-
-    const desc = guide.description || 'Curated audio walking guide on CurioCity'
-    const url = window.location.href
-
-    const ogTitle = meta('og:title', `${guide.title} — CurioCity`)
-    const ogDesc = meta('og:description', desc)
-    const ogUrl = meta('og:url', url)
-
-    return () => {
-      document.title = prevTitle
-      ogTitle.remove()
-      ogDesc.remove()
-      ogUrl.remove()
-    }
-  }, [guide])
 
   const handleShare = useCallback(async () => {
     const url = window.location.href
@@ -170,8 +138,7 @@ export default function GuidePage() {
     try {
       const res = await guides.detail(guideId)
       setGuide(res.data)
-      const saved = await isGuideOffline(guideId)
-      setIsSaved(saved)
+      setIsSaved(false)
     } catch (err: any) {
       if (err?.code === 'ERR_CANCELED') return
       // Try loading from IndexedDB when offline
@@ -338,31 +305,49 @@ export default function GuidePage() {
         />
       </div>
 
-      {/* Audio Bar */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-3.5 py-[9px] flex items-center gap-2.5 shrink-0 sticky top-0 z-15">
+      {/* Stop Navigation Bar */}
+      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-3.5 py-[9px] flex items-center gap-2.5 shrink-0 z-10">
         <div className="flex-1 min-w-0">
           <div className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">
             {activeStop !== null && guide.stops?.[activeStop] ? (
               <span><strong className="text-[#F27732] dark:text-[#f5f5f3]">{guide.stops[activeStop].name}</strong></span>
             ) : (
-              'Tap ▶ to hear guide aloud'
+              'Select a stop to view details'
             )}
-          </div>
-          <div className="w-full h-[2px] bg-black/20 dark:bg-white/18 rounded-[1px] mt-1 overflow-hidden">
-            <div className="h-full bg-[#1D9E75] rounded-[1px] transition-all" style={{ width: isPlaying ? '30%' : '0%' }}></div>
           </div>
         </div>
         <div className="flex gap-[6px] items-center shrink-0">
-          <button aria-label="Previous stop" className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[#1D9E75]">⏮</button>
           <button
-            aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
-            onClick={() => setIsPlaying(!isPlaying)}
-            className={`w-8 h-8 rounded-full border flex items-center justify-center cursor-pointer text-[15px] ${isPlaying ? 'bg-[#1D9E75] border-[#1D9E75] text-white' : 'bg-[#f5f5f3] dark:bg-[#272725] border-black/20 dark:border-white/18 hover:border-[#1D9E75]'}`}
-          >
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-          <button aria-label="Next stop" className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[#1D9E75]">⏭</button>
-          <button aria-label="Walking directions" className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[#1D9E75]">🚶</button>
+            aria-label="Previous stop"
+            onClick={() => {
+              if (activeStop === null || activeStop === 0) return
+              setActiveStop(activeStop - 1)
+              const el = document.getElementById(`stop-${activeStop - 1}`)
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }}
+            disabled={activeStop === null || activeStop === 0}
+            className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[#1D9E75] disabled:opacity-30 disabled:cursor-not-allowed"
+          >⏮</button>
+          <button
+            aria-label="Next stop"
+            onClick={() => {
+              if (activeStop === null || !guide.stops || activeStop >= guide.stops.length - 1) return
+              setActiveStop(activeStop + 1)
+              const el = document.getElementById(`stop-${activeStop + 1}`)
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }}
+            disabled={activeStop === null || !guide.stops || activeStop >= guide.stops.length - 1}
+            className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[#1D9E75] disabled:opacity-30 disabled:cursor-not-allowed"
+          >⏭</button>
+          {activeStop !== null && guide.stops?.[activeStop]?.latitude && guide.stops?.[activeStop]?.longitude && (
+            <a
+              aria-label="Walking directions"
+              href={`https://www.google.com/maps/dir/?api=1&destination=${guide.stops[activeStop].latitude},${guide.stops[activeStop].longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[#1D9E75]"
+            >🚶</a>
+          )}
         </div>
       </div>
 
@@ -401,13 +386,13 @@ export default function GuidePage() {
                   <div className="flex-1">
                     <div className="text-[13px] font-bold">{cost.name}</div>
                   </div>
-                  <span className="text-sm font-bold shrink-0">€{parseFloat(cost.price).toFixed(2)}</span>
+                  <span className="text-sm font-bold shrink-0">€{(parseFloat(cost.price) || 0).toFixed(2)}</span>
                 </div>
               ))}
               <div className="px-3.5 py-2.5 bg-[#f5f5f3] dark:bg-[#272725] flex justify-between items-center">
                 <span className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0]">Total</span>
                 <span className="text-lg font-bold text-[#1D9E75]">
-                  €{guide.costs.reduce((sum, c) => sum + parseFloat(c.price), 0).toFixed(2)}
+                  €{guide.costs.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -423,7 +408,6 @@ export default function GuidePage() {
                   stop={stop}
                   index={index}
                   isActive={activeStop === index}
-                  isPlaying={isPlaying && activeStop === index}
                   onClick={() => setActiveStop(index)}
                 />
               ))}
@@ -623,11 +607,11 @@ export default function GuidePage() {
   )
 }
 
-function StopCard({ stop, index, isActive, isPlaying, onClick }: { stop: GuideStop; index: number; isActive: boolean; isPlaying: boolean; onClick: () => void }) {
+function StopCard({ stop, index, isActive, onClick }: { stop: GuideStop; index: number; isActive: boolean; onClick: () => void }) {
   return (
     <div id={`stop-${index}`} className={`border rounded-xl overflow-hidden mb-2.5 bg-white dark:bg-[#1e1e1c] transition-colors ${isActive ? 'border-[#1D9E75]' : 'border-black/10 dark:border-white/9'}`}>
       <div className="px-3 py-[11px] flex gap-2.5 items-start cursor-pointer" onClick={onClick}>
-        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 mt-[1px] ${isPlaying ? 'bg-[#1D9E75] text-white animate-pulse' : 'bg-[#E1F5EE] text-[#085041]'}`}>
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 mt-[1px] ${isActive ? 'bg-[#1D9E75] text-white' : 'bg-[#E1F5EE] text-[#085041]'}`}>
           {index + 1}
         </div>
         <div className="flex-1">

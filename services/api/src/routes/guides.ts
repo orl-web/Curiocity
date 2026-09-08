@@ -12,6 +12,8 @@ import { geocodeAddress } from '../utils/geocode';
 
 const router = Router();
 
+const sanitizeXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
 const categorySchema = z.enum(['food', 'architecture', 'history', 'art', 'nature', 'characters', 'general']);
 const priceModelSchema = z.enum(['free', 'paid', 'ad']);
 
@@ -67,7 +69,7 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   }
 
   const totalResult = await db.select({ count: sql<number>`count(*)` }).from(baseQuery.as('subq'));
-  total = totalResult[0]?.count || 0;
+  total = Number(totalResult[0]?.count) || 0;
 
   if (hasLocation) {
     baseQuery = baseQuery.orderBy(sql`(SELECT min(6371 * acos(cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null)`);
@@ -198,8 +200,6 @@ router.get('/:id/export', validateParams(idParamSchema), async (req: Request, re
   const stops = await db.select().from(guideStops).where(eq(guideStops.guideId, id)).orderBy(asc(guideStops.stopOrder));
   const costs = await db.select().from(guideCosts).where(eq(guideCosts.guideId, id));
 
-  const sanitizeXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-
   const data = {
     title: guide.title, city: guide.city, description: guide.description, category: guide.category,
     duration: guide.duration, distance: guide.distance, creator: creator?.displayName || 'Unknown',
@@ -289,8 +289,8 @@ router.get('/:id/og-image', validateParams(idParamSchema), async (req: Request, 
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="40" y="40" width="1120" height="550" rx="24" fill="white" fill-opacity="0.12"/>
   <text x="600" y="180" font-family="system-ui, -apple-system, sans-serif" font-size="120" text-anchor="middle" fill="white" fill-opacity="0.9">${emoji}</text>
-  <text x="600" y="280" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="bold" text-anchor="middle" fill="white">${title}</text>
-  <text x="600" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="28" text-anchor="middle" fill="white" fill-opacity="0.8">${city}</text>
+  <text x="600" y="280" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="bold" text-anchor="middle" fill="white">${sanitizeXml(title)}</text>
+  <text x="600" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="28" text-anchor="middle" fill="white" fill-opacity="0.8">${sanitizeXml(city)}</text>
   ${rating ? `<text x="600" y="390" font-family="system-ui, -apple-system, sans-serif" font-size="24" text-anchor="middle" fill="#FFD43B">${rating}</text>` : ''}
   <text x="600" y="520" font-family="system-ui, -apple-system, sans-serif" font-size="22" text-anchor="middle" fill="white" fill-opacity="0.6">curiocity.app</text>
 </svg>`;

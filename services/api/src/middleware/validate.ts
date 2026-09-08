@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { AnyZodObject, ZodError, z } from 'zod';
 import { AppError } from './errorHandler';
 
 export const validate = (schema: AnyZodObject) =>
@@ -20,10 +20,10 @@ export const validate = (schema: AnyZodObject) =>
   };
 
 export const validateBody = (schema: AnyZodObject) =>
-  validate(schema.pick({ body: true }));
+  validate(z.object({ body: schema, query: z.object({}).passthrough(), params: z.object({}).passthrough() }));
 
 export const validateQuery = (schema: AnyZodObject) =>
-  validate(schema.pick({ query: true }));
+  validate(z.object({ query: schema, body: z.object({}).passthrough(), params: z.object({}).passthrough() }));
 
 export const validateParams = (schema: AnyZodObject) =>
-  validate(schema.pick({ params: true }));
+  validate(z.object({ params: schema, body: z.object({}).passthrough(), query: z.object({}).passthrough() }));

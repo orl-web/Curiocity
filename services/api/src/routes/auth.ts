@@ -27,39 +27,49 @@ const generateInitials = (name: string): string => {
 };
 
 router.post('/register', validateBody(registerSchema), async (req: Request, res: Response) => {
-  const { email, password, displayName } = req.body;
-  const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (existing.length > 0) throw AppError.conflict('Email already registered');
+  try {
+    const { email, password, displayName } = req.body;
+    const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (existing.length > 0) throw AppError.conflict('Email already registered');
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  const initials = generateInitials(displayName);
-  const userId = uuidv4();
+    const passwordHash = await bcrypt.hash(password, 12);
+    const initials = generateInitials(displayName);
+    const userId = uuidv4();
 
-  const newUser = { id: userId, email, emailVerified: config.NODE_ENV === 'development', passwordHash, displayName, initials, role: 'user' as const };
-  await db.insert(users).values(newUser);
+    const newUser = { id: userId, email, emailVerified: config.NODE_ENV === 'development', passwordHash, displayName, initials, role: 'user' as const };
+    await db.insert(users).values(newUser);
 
-  // Send verification email in production
-  if (config.NODE_ENV !== 'development') {
-    await sendVerificationEmail(email, userId).catch((err) => {
-      console.error('Failed to send verification email:', err);
-    });
+    // Send verification email in production
+    if (config.NODE_ENV !== 'development') {
+      await sendVerificationEmail(email, userId).catch((err) => {
+        console.error('Failed to send verification email:', err);
+      });
+    }
+
+    const tokens = generateTokens({ userId, email, role: 'user' });
+    res.status(201).json({ user: { id: userId, email, displayName, initials, role: 'user', emailVerified: newUser.emailVerified }, ...tokens });
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw AppError.badRequest('Registration failed');
   }
-
-  const tokens = generateTokens({ userId, email, role: 'user' });
-  res.status(201).json({ user: { id: userId, email, displayName, initials, role: 'user', emailVerified: newUser.emailVerified }, ...tokens });
 });
 
 router.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (!userRows.length) throw AppError.unauthorized('Invalid credentials');
-  const user = userRows[0];
-  if (!user.passwordHash) throw AppError.unauthorized('Account uses social login. Please sign in with your provider.');
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw AppError.unauthorized('Invalid credentials');
+  try {
+    const { email, password } = req.body;
+    const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (!userRows.length) throw AppError.unauthorized('Invalid credentials');
+    const user = userRows[0];
+    if (!user.passwordHash) throw AppError.unauthorized('Account uses social login. Please sign in with your provider.');
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) throw AppError.unauthorized('Invalid credentials');
 
-  const tokens = generateTokens({ userId: user.id, email: user.email, role: user.role });
-  res.json({ user: { id: user.id, email: user.email, displayName: user.displayName, initials: user.initials, role: user.role, emailVerified: user.emailVerified, avatarUrl: user.avatarUrl, bio: user.bio, location: user.location }, ...tokens });
+    const tokens = generateTokens({ userId: user.id, email: user.email, role: user.role });
+    res.json({ user: { id: user.id, email: user.email, displayName: user.displayName, initials: user.initials, role: user.role, emailVerified: user.emailVerified, avatarUrl: user.avatarUrl, bio: user.bio, location: user.location }, ...tokens });
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw AppError.badRequest('Login failed');
+  }
 });
 
 router.post('/refresh', validateBody(refreshSchema), async (req: Request, res: Response) => {

@@ -13,13 +13,19 @@ export default function TimerWidget({ onTimeUp }: TimerWidgetProps) {
   const [displaySeconds, setDisplaySeconds] = useState([0, 0])
   const intervalRef = useRef<number | null>(null)
   const spinIntervalRef = useRef<number | null>(null)
+  const startTimeoutRef = useRef<number | null>(null)
+  const minutesRef = useRef(minutes)
+
+  useEffect(() => {
+    minutesRef.current = minutes
+  }, [minutes])
 
   useEffect(() => {
     if (isRunning && (minutes > 0 || seconds > 0)) {
       intervalRef.current = window.setInterval(() => {
         setSeconds((prev) => {
           if (prev === 0) {
-            if (minutes === 0) {
+            if (minutesRef.current === 0) {
               setIsRunning(false)
               onTimeUp?.()
               return 0
@@ -35,14 +41,26 @@ export default function TimerWidget({ onTimeUp }: TimerWidgetProps) {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
-  }, [isRunning, minutes, seconds, onTimeUp])
+  }, [isRunning, onTimeUp])
 
   useEffect(() => {
     setDisplayMinutes([Math.floor(minutes / 10), minutes % 10])
     setDisplaySeconds([Math.floor(seconds / 10), seconds % 10])
   }, [minutes, seconds])
+
+  useEffect(() => {
+    return () => {
+      if (spinIntervalRef.current) {
+        clearInterval(spinIntervalRef.current)
+      }
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const spinSlots = (callback: (m: number, s: number) => void) => {
     setIsSpinning(true)
@@ -82,7 +100,7 @@ export default function TimerWidget({ onTimeUp }: TimerWidgetProps) {
   const handleStart = () => {
     if (minutes === 0 && seconds === 0) {
       handleRandomize()
-      setTimeout(() => setIsRunning(true), 1300)
+      startTimeoutRef.current = window.setTimeout(() => setIsRunning(true), 1300)
     } else {
       setIsRunning(true)
     }
