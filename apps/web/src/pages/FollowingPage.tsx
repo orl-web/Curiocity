@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { users } from '../services/api'
 import SEO from '../components/SEO'
+import { GuideSkeletonList } from '../components/Skeleton'
 import type { Guide } from '../types'
 
 export default function FollowingPage() {
@@ -37,9 +38,9 @@ export default function FollowingPage() {
 
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[11px] min-h-0">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true" role="status">
-            <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[#1D9E75] rounded-full animate-spin"></div>
+          <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">Loading feed</span>
+            <GuideSkeletonList count={3} />
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">

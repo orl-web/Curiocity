@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { guides, getCancelToken } from '../services/api'
 import SEO from '../components/SEO'
+import { GuideSkeletonList } from '../components/Skeleton'
 import type { Guide, GuideFilters } from '../types'
 
 const categories = [
@@ -217,9 +218,9 @@ export default function HomePage() {
       {/* Feed */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[11px] min-h-0">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true" role="status">
-            <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[#1D9E75] rounded-full animate-spin"></div>
+          <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">Loading guides</span>
+            <GuideSkeletonList count={3} />
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -227,7 +228,19 @@ export default function HomePage() {
             <button onClick={loadGuides} className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : (guidesList || []).length === 0 ? (
-          <div role="status" className="text-center py-12 text-[#5f5e5a] dark:text-[#a8a7a0] text-sm">No guides found</div>
+          <div role="status" className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <span className="text-3xl" aria-hidden="true">🔍</span>
+            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0]">
+              {search || activeCategory !== 'all' || nearMeActive
+                ? 'No guides match your filters — try a different category or clear the search.'
+                : 'No guides yet — be the first to create one!'}
+            </p>
+            {search || activeCategory !== 'all' || nearMeActive ? (
+              <button onClick={() => { setSearch(''); setActiveCategory('all'); setNearMeActive(false) }} className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Clear filters</button>
+            ) : (
+              <Link to="/create" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold no-underline">Create a guide</Link>
+            )}
+          </div>
         ) : (
           (guidesList || []).map((guide, index) => (
             <GuideCard key={guide.id} guide={guide} index={index} onClick={() => navigate(`/guide/${guide.id}`)} />
