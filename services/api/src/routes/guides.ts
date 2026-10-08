@@ -34,6 +34,18 @@ const querySchema = z.object({ category: categorySchema.optional(), city: z.stri
 const idParamSchema = z.object({ id: z.string().uuid() });
 const saveDraftSchema = z.object({ title: z.string().max(200).optional(), city: z.string().max(100).optional(), category: categorySchema.optional(), duration: z.string().max(20).optional(), distance: z.string().max(20).optional(), priceModel: priceModelSchema.default('free'), description: z.string().optional(), stops: z.array(z.object({ name: z.string().max(200), description: z.string().optional(), photoUrl: z.string().optional(), videoUrl: z.string().optional(), links: z.array(z.object({ title: z.string(), url: z.string().url() })).default([]) })).default([]), costs: z.object({ tickets: z.number().optional(), meals: z.number().optional(), transport: z.number().optional() }).optional() });
 
+router.get('/autocomplete', validateQuery(z.object({ q: z.string().min(1).max(100), limit: z.coerce.number().min(1).max(10).default(5) })), async (req: Request, res: Response) => {
+  const { q, limit } = req.query as unknown as { q: string; limit: number };
+  const pattern = `%${q}%`;
+  const results = await db
+    .select({ id: guides.id, title: guides.title, city: guides.city, category: guides.category, priceModel: guides.priceModel })
+    .from(guides)
+    .where(and(eq(guides.isPublished, true), or(like(guides.title, pattern), like(guides.city, pattern))))
+    .orderBy(desc(guides.rating))
+    .limit(limit);
+  res.json({ suggestions: results });
+});
+
 router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, res: Response) => {
   const { category, city, priceModel, search, creatorId, savedBy, createdBy, limit, offset, sort, lat, lng, radius } = req.query as any;
   const userId = req.user?.userId;

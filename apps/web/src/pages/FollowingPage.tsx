@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { users } from '../services/api'
+import SEO from '../components/SEO'
 import type { Guide } from '../types'
 
 export default function FollowingPage() {
@@ -29,6 +30,7 @@ export default function FollowingPage() {
 
   return (
     <div className="flex flex-col min-h-0">
+      <SEO title="Feed" description="Guides from creators you follow on CurioCity" />
       <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 sticky top-0 z-20 shrink-0">
         <h1 className="text-lg font-bold text-[#1D9E75] tracking-tight">Feed</h1>
       </div>

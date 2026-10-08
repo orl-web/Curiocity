@@ -13,6 +13,14 @@ import { config } from '../config';
 const router = Router();
 const stripe = new Stripe(config.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({
+    publishableKey: config.STRIPE_PUBLISHABLE_KEY || '',
+    currency: 'eur',
+    platformFeePercent: config.PLATFORM_FEE_PERCENT,
+  });
+});
+
 const checkoutSchema = z.object({ guideId: z.string().uuid() });
 const connectOnboardSchema = z.object({ returnUrl: z.string().url(), refreshUrl: z.string().url() });
 const adRewardSchema = z.object({ guideId: z.string().uuid(), provider: z.enum(['admob', 'unity']) });

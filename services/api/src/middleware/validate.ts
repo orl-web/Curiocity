@@ -3,20 +3,20 @@ import { AnyZodObject, ZodError, z } from 'zod';
 import { AppError } from './errorHandler';
 
 export const validate = (schema: AnyZodObject) =>
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await schema.parseAsync({
+  (req: Request, res: Response, next: NextFunction) => {
+    schema
+      .parseAsync({
         body: req.body,
         query: req.query,
         params: req.params,
+      })
+      .then(() => next())
+      .catch((err) => {
+        if (err instanceof ZodError) {
+          return next(AppError.badRequest('Validation failed', err.errors));
+        }
+        next(err);
       });
-      next();
-    } catch (err) {
-      if (err instanceof ZodError) {
-        throw AppError.badRequest('Validation failed', err.errors);
-      }
-      next(err);
-    }
   };
 
 export const validateBody = (schema: AnyZodObject) =>

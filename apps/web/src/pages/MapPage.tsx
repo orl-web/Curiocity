@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 import { guides } from '../services/api'
 import { getAllOfflineGuides } from '../utils/offlineStorage'
 import { getAllImportedLocations } from '../utils/importedLocations'

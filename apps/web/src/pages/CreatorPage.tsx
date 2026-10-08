@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { users } from '../services/api'
+import SEO from '../components/SEO'
 import type { Guide } from '../types'
 
 interface CreatorProfile {
@@ -104,6 +105,7 @@ export default function CreatorPage() {
 
   return (
     <div className="flex flex-col h-full">
+      <SEO title={profile ? `${profile.displayName} — CurioCity` : 'Creator'} description={`Walking guides by ${profile?.displayName || 'this creator'} on CurioCity`} />
       <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 shrink-0">
         <button onClick={() => navigate(-1)} className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[#f5f5f3]">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">

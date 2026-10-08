@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import './middleware/asyncHandler';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -46,6 +47,12 @@ const limiter = rateLimit({
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    const rl = (req as unknown as { rateLimit?: { resetTime?: Date } }).rateLimit;
+    const retryAfter = Math.ceil(((rl?.resetTime?.getTime() || Date.now() + 900000) - Date.now()) / 1000);
+    res.setHeader('Retry-After', String(retryAfter));
+    res.status(429).json({ error: 'Too many requests, please try again later' });
+  },
 });
 app.use('/api/', limiter);
 
@@ -53,6 +60,12 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: { error: 'Too many authentication attempts' },
+  handler: (req, res) => {
+    const rl = (req as unknown as { rateLimit?: { resetTime?: Date } }).rateLimit;
+    const retryAfter = Math.ceil(((rl?.resetTime?.getTime() || Date.now() + 900000) - Date.now()) / 1000);
+    res.setHeader('Retry-After', String(retryAfter));
+    res.status(429).json({ error: 'Too many authentication attempts' });
+  },
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);

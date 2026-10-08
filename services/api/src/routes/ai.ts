@@ -14,11 +14,14 @@ const router = Router();
 
 const anthropic = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
 
+const sanitizeForPrompt = (s: string): string =>
+  s.replace(/[\r\n]+/g, ' ').replace(/[<>]/g, '').slice(0, 500);
+
 const aiRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: config.AI_RATE_LIMIT_PER_HOUR,
   message: { error: 'AI generation rate limit exceeded. Try again later.' },
-  keyGenerator: (req) => req.user?.userId || req.ip,
+  keyGenerator: (req) => req.user?.userId || req.ip || '',
   handler: (req, res) => res.status(429).json({ error: 'AI generation rate limit exceeded. Try again later.' }),
   skip: () => false,
 });
@@ -36,7 +39,7 @@ router.post('/generate-descriptions', authenticate, aiRateLimit, validateBody(ge
   const userRows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!userRows.length) throw AppError.notFound('User not found');
 
-  const stopNames = stops.map((s: any) => s.name).join('\n');
+  const stopNames = stops.map((s: { name: string }) => sanitizeForPrompt(s.name)).join('\n');
 
   try {
     const response = await anthropic.messages.create({
@@ -47,7 +50,7 @@ router.post('/generate-descriptions', authenticate, aiRateLimit, validateBody(ge
         content: `You are a brilliant travel writer specialising in ${category.toLowerCase()} curiosities.
 For each stop, write ONE fascinating sentence (max 20 words) — a surprising fact, hidden story, or sensory detail a curious traveller would love to discover and remember.
 
-City: ${city}
+City: ${sanitizeForPrompt(city)}
 Category: ${category}
 Stops:
 ${stopNames}
@@ -92,10 +95,10 @@ router.post('/format-description', authenticate, aiRateLimit, validateBody(forma
       max_tokens: 500,
       messages: [{
         role: 'user',
-        content: `You are a travel guide editor. Take this raw text and format it into a compelling, concise teaser description for a ${category} walking guide in ${city}. Keep it under 150 words. Make it engaging, vivid, and inviting for curious travellers. Remove any irrelevant content. Return ONLY the formatted text, no JSON, no markdown.
+        content: `You are a travel guide editor. Take this raw text and format it into a compelling, concise teaser description for a ${sanitizeForPrompt(category)} walking guide in ${sanitizeForPrompt(city)}. Keep it under 150 words. Make it engaging, vivid, and inviting for curious travellers. Remove any irrelevant content. Return ONLY the formatted text, no JSON, no markdown.
 
 Raw text:
-${rawText}`,
+${rawText.slice(0, 5000)}`,
       }],
     });
 
@@ -138,9 +141,9 @@ router.post('/translate', authenticate, requireRole('creator', 'admin'), aiRateL
 }
 
 Guide:
-Title: ${guide.title}
-Description: ${guide.description}
-Stops: ${JSON.stringify(stops.map((s: any) => ({ name: s.name, description: s.description })))}`,
+Title: ${sanitizeForPrompt(guide.title)}
+Description: ${sanitizeForPrompt(guide.description || '')}
+Stops: ${JSON.stringify(stops.map((s: { name: string; description: string | null }) => ({ name: sanitizeForPrompt(s.name), description: sanitizeForPrompt(s.description || '') })))}`,
       }],
     });
 

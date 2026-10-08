@@ -33,6 +33,7 @@ export default function GuidePage() {
   const [replyText, setReplyText] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [showCopiedToast, setShowCopiedToast] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const [isSavingOffline, setIsSavingOffline] = useState(false)
@@ -84,6 +85,8 @@ export default function GuidePage() {
         setShowCopiedToast(true)
         setTimeout(() => setShowCopiedToast(false), 2000)
       } catch {
+        setActionError('Failed to copy link')
+        setTimeout(() => setActionError(null), 3000)
       }
     }
   }, [guide])
@@ -103,6 +106,8 @@ export default function GuidePage() {
       setReviewText('')
       setReviewRating(5)
     } catch {
+      setActionError('Failed to post review. Please try again.')
+      setTimeout(() => setActionError(null), 3000)
     } finally {
       setReviewSubmitting(false)
     }
@@ -128,6 +133,8 @@ export default function GuidePage() {
         setCommentText('')
       }
     } catch {
+      setActionError('Failed to post comment. Please try again.')
+      setTimeout(() => setActionError(null), 3000)
     } finally {
       setCommentSubmitting(false)
     }
@@ -291,6 +298,9 @@ export default function GuidePage() {
       </div>
       {showCopiedToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a18] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-50">Copied!</div>
+      )}
+      {actionError && (
+        <div role="alert" className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#E24B4A] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-50">{actionError}</div>
       )}
 
       {/* Map */}
