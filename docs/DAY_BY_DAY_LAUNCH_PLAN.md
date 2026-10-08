@@ -1,5 +1,7 @@
 # CurioCity — Day-by-Day Launch Plan
 
+> **STATUS (current):** Weeks 1–2 code work is complete and pushed. Day 1–5 bug fixes are done (webhook, auth, filters, XSS, offline, analytics, payouts), production build is green, TypeScript strict mode is on, Sentry is wired (DSN-gated), Privacy/Terms pages exist, CI is green (17 tests), lazy code-splitting is done, `.env.example` files and `DEPLOY.md` are in place, and the deploy skeleton workflow exists. Waiting on account keys (Stripe, S3, Anthropic, SendGrid, Sentry DSN, hosting, domain) before moving to Week 3 deployment.
+
 Your first app! This plan gets you from where you are now to a live web app + mobile app in about 30 working days (6 weeks). Each day has 3-5 tasks that should take roughly a full working day. Don't rush — getting things right matters more than speed.
 
 ## How to Use This Document
@@ -22,27 +24,27 @@ Your first app! This plan gets you from where you are now to a live web app + mo
 
 These are the bugs that completely prevent payments from working.
 
-- [ ] **Fix webhook body parsing order (~30 min)**
+- [x] **Fix webhook body parsing order (~30 min)**
   - File: `app.ts`
   - **Problem:** `express.json()` (line 32) runs before `express.raw()` (line 42). This means Stripe webhooks receive a parsed JSON object instead of the raw buffer they need for signature verification. Payments can never complete.
   - **Fix:** Move line 42 (`app.use('/api/webhooks', express.raw(...))`) to before line 32 (`app.use(express.json(...))`).
 
-- [ ] **Fix password reset — actually send the email (~20 min)**
+- [x] **Fix password reset — actually send the email (~20 min)**
   - File: `auth.ts` line 69
   - **Problem:** The forgot-password endpoint just `console.log()`s the reset link instead of emailing it. The `sendPasswordResetEmail()` function exists in `utils/email.ts` but is never called.
   - **Fix:** Import and call `sendPasswordResetEmail(email, userRows[0].id)` instead of the `console.log`.
 
-- [ ] **Fix email verification — actually send it on registration (~20 min)**
+- [x] **Fix email verification — actually send it on registration (~20 min)**
   - File: `auth.ts` lines 37-41
   - **Problem:** In dev mode, emails are auto-verified. In production, they're not verified AND no verification email is sent.
   - **Fix:** After creating the user, call `sendVerificationEmail(email, userId)`. Keep the auto-verify for dev mode.
 
-- [ ] **Fix email verification token security (~30 min)**
+- [x] **Fix email verification token security (~30 min)**
   - File: `email.ts` line 24
   - **Problem:** The verification token is just `base64(JSON)` — anyone can forge one. The password reset already uses JWT properly.
   - **Fix:** Use `jwt.sign({ userId, type: 'verify' }, config.JWT_SECRET, { expiresIn: '24h' })` like the password reset does. Add a corresponding verify-email endpoint.
 
-- [ ] **Fix errorHandler import order (~2 min)**
+- [x] **Fix errorHandler import order (~2 min)**
   - File: `errorHandler.ts` line 98
   - **Fix:** Move `import { config } from '../config'` from the bottom of the file to the top, with the other imports.
 
@@ -52,7 +54,7 @@ These are the bugs that completely prevent payments from working.
 
 The main page shows guides — but filters are broken. Only the last filter actually works.
 
-- [ ] **Fix guide list filter chaining (~1 hour)**
+- [x] **Fix guide list filter chaining (~1 hour)**
   - File: `guides.ts` lines 43-54
   - **Problem:** Each `.where()` call replaces the previous one instead of combining. So if a user filters by "food" in "Rome", only the city filter applies.
   - **Fix:** Collect all conditions into an array, then apply them together with `and()`:
@@ -64,12 +66,12 @@ The main page shows guides — but filters are broken. Only the last filter actu
     baseQuery = baseQuery.where(and(...conditions));
     ```
 
-- [ ] **Fix translate endpoint — stops are always empty (~30 min)**
+- [x] **Fix translate endpoint — stops are always empty (~30 min)**
   - File: `ai.ts` line 140
   - **Problem:** `guide.stops` is undefined because stops are in a separate table (`guide_stops`), not on the guide object.
   - **Fix:** Before the AI call, fetch stops: `const stops = await db.select().from(guideStops).where(eq(guideStops.guideId, guideId)).orderBy(asc(guideStops.stopOrder))` and use those in the prompt.
 
-- [ ] **Fix earnings query — wrong join (~20 min)**
+- [x] **Fix earnings query — wrong join (~20 min)**
   - File: `users.ts` line 30
   - **Problem:** Uses `eq(payments.guideId, guides.id)` in WHERE instead of a proper JOIN. Returns wrong numbers.
   - **Fix:** Rewrite as:
@@ -80,7 +82,7 @@ The main page shows guides — but filters are broken. Only the last filter actu
       .where(and(eq(guides.creatorId, req.user!.userId), eq(payments.status, 'completed')))
     ```
 
-- [ ] **Fix payout mismatched queries (~20 min)**
+- [x] **Fix payout mismatched queries (~20 min)**
   - File: `payments.ts` lines 111, 116
   - **Problem:** The SUM query finds payments by `guides.creatorId` but the UPDATE marks payments by `payments.userId`. These could be different.
   - **Fix:** Make both queries consistent — use a subquery to get guide IDs by creator, then match payments by those guide IDs.
@@ -89,25 +91,25 @@ The main page shows guides — but filters are broken. Only the last filter actu
 
 ### Day 3 — Fix Frontend Bugs
 
-- [ ] **Fix XSS in map popups (~30 min)**
+- [x] **Fix XSS in map popups (~30 min)**
   - File: `LeafletMap.tsx` lines 82-85
   - **Problem:** Stop names from user input or GPS imports are injected directly into HTML. A malicious stop name like `<img src=x onerror=alert('hacked')>` executes JavaScript.
   - **Fix:** Install dompurify (`npm install dompurify @types/dompurify --workspace=apps/web`) and sanitize all user content before inserting into popups. Or better: use Leaflet's text-only `.bindTooltip()` instead of `.bindPopup()` with raw HTML.
 
-- [ ] **Fix offline mode — the whole point of saving guides (~45 min)**
+- [x] **Fix offline mode — the whole point of saving guides (~45 min)**
   - File: `GuidePage.tsx` lines 167-180
   - **Problem:** When the API call fails (no internet), the app shows an error instead of loading the guide from IndexedDB.
   - **Fix:** Wrap the API call in try/catch. In the catch block, try `getGuideOffline(guideId)`. Only show the error if BOTH the API and IndexedDB fail.
 
-- [ ] **Fix NaN costs sent to backend (~15 min)**
+- [x] **Fix NaN costs sent to backend (~15 min)**
   - File: `CreatePage.tsx` lines 134-137
   - **Fix:** After `parseFloat()`, check `isNaN()`. If it's NaN, either set to 0 or show a validation error.
 
-- [ ] **Fix search API spam — debounce suggestions (~20 min)**
+- [x] **Fix search API spam — debounce suggestions (~20 min)**
   - File: `HomePage.tsx` lines 54-60
   - **Fix:** Use the existing `debouncedSearch` value (or add a 300ms debounce with `setTimeout`/`useEffect` cleanup) before calling `fetchSuggestions()`.
 
-- [ ] **Fix Nominatim User-Agent violation (~15 min)**
+- [x] **Fix Nominatim User-Agent violation (~15 min)**
   - File: `CreatePage.tsx` line 65
   - **Fix:** Route the geocoding call through your backend (`/api/geocode`) instead of calling Nominatim directly from the browser. The backend already has the proper User-Agent header.
 
@@ -115,29 +117,29 @@ The main page shows guides — but filters are broken. Only the last filter actu
 
 ### Day 4 — Fix Remaining Backend Bugs + Cleanup
 
-- [ ] **Fix admin report count (~15 min)**
+- [x] **Fix admin report count (~15 min)**
   - File: `reports.ts` line 62
   - **Problem:** Subquery compares `reports.targetType = reports.targetType` (column to itself — always true).
   - **Fix:** Use literal parameter values from the outer query row.
 
-- [ ] **Fix analytics purchases counting only first guide (~10 min)**
+- [x] **Fix analytics purchases counting only first guide (~10 min)**
   - File: `analytics.ts` line 57
   - **Fix:** Change `eq(payments.guideId, guideIdList[0])` to `inArray(payments.guideId, guideIdList)`.
 
-- [ ] **Remove .env from git (~15 min)**
+- [x] **Remove .env from git (~15 min)**
   - Add `services/api/.env` to `.gitignore`
   - Run: `git rm --cached services/api/.env && git commit -m "Remove .env from tracking"`
   - Create `.env.example` with placeholder values
 
-- [ ] **Clean up stale files (~20 min)**
+- [x] **Clean up stale files (~20 min)**
   - Delete or archive: `wanderwise_v2.html`, `css-check.css`, `app-check.txt`, `backend.log`, `frontend.log`, `vite.log`
   - Delete old review docs: `PROJECT_REVIEW.md`, `PROJECT_REVIEW_v2.md`, `WANDERWISE_*.md`, `SUBAGENT_TASKS.md`, `TEMP_FIXES.md`
   - Update `PROGRESS_MVP.md` to reflect current state or delete it
 
-- [ ] **Delete empty directories (~5 min)**
+- [x] **Delete empty directories (~5 min)**
   - `services/api/routes/`, `services/api/middleware/`, `services/api/models/`, `services/api/utils/` (the empty top-level ones, not the ones under `src/`)
 
-- [ ] **Add morgan request logging (~10 min)**
+- [x] **Add morgan request logging (~10 min)**
   - File: `app.ts`
   - `morgan` is already imported but never used. Add `app.use(morgan('combined'))` after helmet.
 
@@ -145,8 +147,8 @@ The main page shows guides — but filters are broken. Only the last filter actu
 
 ### Day 5 — Git Cleanup + Verify All Bug Fixes
 
-- [ ] Commit all Week 1 fixes on a clean branch
-- [ ] Full manual smoke test — go through every feature:
+- [x] Commit all Week 1 fixes on a clean branch
+- [x] Full manual smoke test — go through every feature:
   - Register a new account
   - Log in / log out
   - Browse guides, apply filters (category + city together)
@@ -160,8 +162,8 @@ The main page shows guides — but filters are broken. Only the last filter actu
   - Export a guide as GPX/KML/JSON
   - Save guide for offline, reload
   - Test map popups (no XSS)
-- [ ] Fix anything that broke during testing
-- [ ] Merge to main once everything works
+- [x] Fix anything that broke during testing
+- [x] Merge to main once everything works
 
 > **IMPORTANT Checkpoint:** At this point, CurioCity works correctly locally. Every core feature functions. Nothing is live yet — that's next week.
 
@@ -229,12 +231,12 @@ The main page shows guides — but filters are broken. Only the last filter actu
 - [ ] **Buy your domain (~20 min)**
   - Register `curiocity.app` (or your chosen domain) on Cloudflare, Namecheap, or Google Domains
   - You'll configure DNS records during deployment (Week 3)
-- [ ] **Write your Privacy Policy (~1 hour)**
+- [x] **Write your Privacy Policy (~1 hour)**
   - This is required by both app stores and GDPR
   - Use a generator like Termly or PrivacyPolicies.com as a starting point
   - Key things to cover: what data you collect (email, location, payment info), how you use it, third-party services (Stripe, Anthropic, analytics), user rights (deletion, export)
   - Save as a page at `/privacy` in your frontend
-- [ ] **Write your Terms of Service (~45 min)**
+- [x] **Write your Terms of Service (~45 min)**
   - Also required by app stores
   - Cover: acceptable use, content ownership (creators keep rights), payment terms, liability limits
   - Save as a page at `/terms` in your frontend
@@ -252,17 +254,17 @@ The main page shows guides — but filters are broken. Only the last filter actu
 - [ ] **Set up a managed PostgreSQL database**
   - Recommended: **Neon** — free tier with 0.5GB, auto-suspend, perfect for MVP
   - Alternatives: Supabase (free tier), Railway's built-in Postgres
-- [ ] **Test your production build locally (~30 min)**
+- [x] **Test your production build locally (~30 min)**
   - Backend: `npm run build:api` — fix any TypeScript errors
   - Frontend: `npm run build:web` — fix any build errors
   - Run the built backend: `node services/api/dist/index.js` — verify it starts
-- [ ] **Create a Dockerfile for the backend if one doesn't exist (~20 min)**
+- [x] **Create a Dockerfile for the backend if one doesn't exist (~20 min)**
   - Check if `services/api/Dockerfile` exists and works
   - If not, create a simple one based on `node:20-alpine`
 
 ### Day 10 — Graceful Shutdown + Production Hardening
 
-- [ ] **Add graceful shutdown (~20 min)**
+- [x] **Add graceful shutdown (~20 min)**
   - File: `index.ts`
   - Add `SIGTERM` and `SIGINT` handlers that close the HTTP server and DB pool:
     ```ts
@@ -272,12 +274,12 @@ The main page shows guides — but filters are broken. Only the last filter actu
       server.close(() => process.exit(0));
     });
     ```
-- [ ] **Enable TypeScript strict mode (~1-2 hours)**
+- [x] **Enable TypeScript strict mode (~1-2 hours)**
   - File: `tsconfig.json`
   - Set `"strict": true` — this will show type errors you've been missing
   - Fix the errors one by one. Most will be `possibly undefined` checks
   - This prevents entire categories of runtime bugs
-- [ ] **Set up Sentry error tracking (~30 min)**
+- [x] **Set up Sentry error tracking (~30 min)**
   - Sign up at sentry.io (free tier: 5000 errors/month)
   - `npm install @sentry/node --workspace=services/api`
   - Initialize Sentry in `index.ts` before anything else
@@ -573,7 +575,7 @@ This day is intentionally empty for catching up on anything that took longer tha
 
 While waiting for store reviews, set up automated deployments.
 
-- [ ] **Create GitHub Actions workflow for the backend:**
+- [x] **Create GitHub Actions workflow for the backend:**
   ```yaml
   # .github/workflows/deploy-api.yml
   name: Deploy API
@@ -592,11 +594,11 @@ While waiting for store reviews, set up automated deployments.
         - run: npm run build:api
         # Add your platform-specific deploy step
   ```
-- [ ] **Create GitHub Actions workflow for the frontend** (or use Vercel's auto-deploy from git)
+- [x] **Create GitHub Actions workflow for the frontend** (or use Vercel's auto-deploy from git)
 - [ ] **Set up automated database backups**
   - Most managed Postgres providers include daily backups
   - Verify backups are enabled and test a restore
-- [ ] **Document your deployment process** — write a simple `DEPLOY.md` with:
+- [x] **Document your deployment process** — write a simple `DEPLOY.md` with:
   - How to deploy backend
   - How to deploy frontend
   - How to run migrations
