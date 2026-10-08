@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import { Sentry } from '../sentry';
 import { config } from '../config';
 
 export class AppError extends Error {
@@ -56,6 +57,15 @@ export const errorHandler = (
     params: req.params,
     query: req.query,
   });
+
+  const isExpected =
+    err instanceof ZodError ||
+    err instanceof JsonWebTokenError ||
+    err instanceof TokenExpiredError ||
+    (err instanceof AppError && err.statusCode < 500);
+  if (!isExpected) {
+    Sentry.captureException(err);
+  }
 
   if (err instanceof ZodError) {
     return res.status(400).json({

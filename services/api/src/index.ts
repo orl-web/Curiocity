@@ -1,3 +1,4 @@
+import { Sentry } from './sentry';
 import { config } from './config';
 import { app } from './app';
 
@@ -13,8 +14,9 @@ const server = app.listen(PORT, HOST, () => {
 // Graceful shutdown
 const shutdown = (signal: string) => {
   console.log(`${signal} received, shutting down gracefully...`);
-  server.close(() => {
+  server.close(async () => {
     console.log('HTTP server closed');
+    await Sentry.flush().catch(() => {});
     process.exit(0);
   });
   // Force exit after 10s if connections don't drain
@@ -29,9 +31,11 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
+  Sentry.captureException(reason);
 });
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
+  Sentry.captureException(err);
   process.exit(1);
 });
