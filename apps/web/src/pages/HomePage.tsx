@@ -154,6 +154,7 @@ export default function HomePage() {
           />
           {search && (
             <button onClick={() => { setSearch(''); setSuggestions([]); setShowSuggestions(false) }}
+              aria-label="Clear search"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#b4b2a9] dark:text-[#706f6a] hover:text-[#5f5e5a] dark:hover:text-[#a8a7a0] cursor-pointer bg-transparent border-none p-0">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
             </button>
@@ -225,7 +226,7 @@ export default function HomePage() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
-            <button onClick={loadGuides} className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
+            <button onClick={loadGuides} aria-label="Retry loading guides" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : (guidesList || []).length === 0 ? (
           <div role="status" className="flex flex-col items-center justify-center py-12 gap-3 text-center">

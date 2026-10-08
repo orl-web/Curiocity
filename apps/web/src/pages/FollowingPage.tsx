@@ -45,7 +45,7 @@ export default function FollowingPage() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
-            <button onClick={loadFeed} className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
+            <button onClick={loadFeed} aria-label="Retry loading feed" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : guides.length === 0 ? (
           <div role="status" className="flex flex-col items-center justify-center py-12 gap-3">
