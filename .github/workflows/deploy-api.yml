@@ -1,0 +1,47 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/api/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build:api
+
+      # Pick ONE of the following once you've chosen a platform (see DEPLOY.md), then remove the others.
+
+      # --- Railway ---
+      # - name: Deploy to Railway
+      #   uses: bervProject/railway-deploy@main
+      #   with:
+      #     railway_token: ${{ secrets.RAILWAY_TOKEN }}
+      #     service: api
+
+      # --- Render (uses a deploy hook — create one in Render Dashboard → Settings → Deploy Hooks) ---
+      # - name: Trigger Render deploy hook
+      #   run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+      # --- Fly.io ---
+      # - name: Deploy to Fly.io
+      #   uses: superfly/fly-actions@v2
+      #   with:
+      #     api_key: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Placeholder (no platform configured yet)
+        run: echo "Build succeeded. Configure a deploy step above — see DEPLOY.md"
