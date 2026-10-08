@@ -114,6 +114,11 @@ export default function LandingPage() {
 
         <footer className="px-6 py-8 border-t border-black/5 text-center text-xs text-[#b4b2a9] dark:text-[#706f6a]">
           CurioCity &copy; {new Date().getFullYear()} &mdash; Curated by locals, powered by curiosity.
+          <div className="mt-2">
+            <Link to="/privacy" className="underline hover:text-[#1D9E75]">Privacy</Link>
+            <span className="mx-2">&middot;</span>
+            <Link to="/terms" className="underline hover:text-[#1D9E75]">Terms</Link>
+          </div>
         </footer>
       </div>
     </>

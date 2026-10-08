@@ -18,6 +18,8 @@ const FollowingPage = lazy(() => import('./pages/FollowingPage'))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const MapPage = lazy(() => import('./pages/MapPage'))
 const LandingPage = lazy(() => import('./pages/LandingPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
+const TermsPage = lazy(() => import('./pages/TermsPage'))
 
 function PageLoader() {
   return (
@@ -45,6 +47,8 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/landing" element={<LandingPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/guide/:id" element={<GuidePage />} />
