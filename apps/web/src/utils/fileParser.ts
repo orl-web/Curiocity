@@ -1,5 +1,3 @@
-import mammoth from 'mammoth'
-
 function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -41,6 +39,7 @@ export async function parseMarkdown(file: File): Promise<string> {
 
 export async function parseDocx(file: File): Promise<string> {
   const arrayBuffer = await readFileAsArrayBuffer(file)
+  const { default: mammoth } = await import('mammoth')
   const result = await mammoth.extractRawText({ arrayBuffer })
   return result.value
 }
