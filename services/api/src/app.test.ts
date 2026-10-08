@@ -139,4 +139,45 @@ describe('auth journey', () => {
     const res = await request(app).get('/api/users/me');
     expect(res.status).toBe(401);
   });
+
+  it('rejects change-password without auth', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .send({ currentPassword: 'Test1234!', newPassword: 'NewPass123!' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects change-password with short new password', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'Test1234!', newPassword: 'short' });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('BAD_REQUEST');
+  });
+
+  it('rejects change-password with wrong current password', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'WrongPassword1!', newPassword: 'NewPass123!' });
+    expect(res.status).toBe(401);
+  });
+
+  it('changes password successfully', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'Test1234!', newPassword: 'NewPass123!' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toContain('Password changed');
+  });
+
+  it('logs in with the new password', async () => {
+    const res = await request(app).post('/api/auth/login').send({
+      email,
+      password: 'NewPass123!',
+    });
+    expect(res.status).toBe(200);
+  });
 });

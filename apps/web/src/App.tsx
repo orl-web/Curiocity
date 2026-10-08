@@ -21,6 +21,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage'))
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/TermsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function PageLoader() {
   return (
@@ -53,11 +54,12 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/guide/:id" element={<GuidePage />} />
-              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/create" element={<ProtectedRoute><CreatePage /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
               <Route path="/feed" element={<ProtectedRoute><FollowingPage /></ProtectedRoute>} />
-              <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
+              <Route path="/map" element={<MapPage />} />
               <Route path="/u/:username" element={<CreatorPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />

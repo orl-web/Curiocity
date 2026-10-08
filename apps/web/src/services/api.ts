@@ -83,6 +83,10 @@ export const guides = {
 
 export const users = {
   me: () => api.get<User & { stats: { saved: number; created: number; earned: number } }>('/users/me'),
+  updateMe: (data: { displayName?: string; bio?: string; location?: string; avatarUrl?: string }) =>
+    api.patch('/users/me', data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
   meGuides: (params?: { limit?: number; offset?: number }) =>
     api.get<{ guides: Guide[]; total: number }>('/users/me/guides', { params }),
   meSaved: (params?: { limit?: number; offset?: number }) =>
@@ -111,6 +115,13 @@ export const payments = {
   adUnlock: (guideId: string) => api.post('/payments/ad-unlock', { guideId }),
   creatorEarnings: () =>
     api.get<{ totalEarnings: number; pendingEarnings: number; payments: any[] }>('/payments/creator/earnings'),
+  connectStatus: () =>
+    api.get<{ onboarded: boolean; detailsSubmitted?: boolean; chargesEnabled?: boolean; payoutsEnabled?: boolean }>('/payments/connect/status'),
+  connectOnboard: (returnUrl: string, refreshUrl: string) =>
+    api.post<{ url: string }>('/payments/connect/onboard', { returnUrl, refreshUrl }),
+  history: () =>
+    api.get<{ payments: Array<{ id: string; amount: string; currency: string; status: string; createdAt: string; completedAt?: string; guide: { id: string; title: string; city?: string; coverImageUrl?: string } }> }>('/payments/history'),
+  payout: () => api.post('/payments/payout'),
 }
 
 export const ai = {

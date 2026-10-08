@@ -15,6 +15,9 @@
   --text-muted: #b4b2a9;
   --bg-primary: #f5f5f3;
   --bg-secondary: #ffffff;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --font-body: system-ui, -apple-system, sans-serif;
+  --font-display: inherit;
 }
 
 .dark {
@@ -23,11 +26,105 @@
   --text-muted: #706f6a;
   --bg-primary: #161614;
   --bg-secondary: #1e1e1c;
+  --border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* ============ SKIN: Cartographer (vintage maps & brass) ============ */
+[data-skin="cartographer"] {
+  --color-primary: #A8792E;
+  --color-primary-light: #C49A4A;
+  --color-secondary: #2F5D62;
+  --color-accent: #9C4A32;
+  --text-primary: #1B2A3D;
+  --text-secondary: #6b6350;
+  --text-muted: #8a8168;
+  --bg-primary: #F3ECDA;
+  --bg-secondary: #FAF6EA;
+  --border-color: #D8CBAA;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+}
+
+[data-skin="cartographer"].dark {
+  --color-primary: #C49A4A;
+  --color-primary-light: #A8792E;
+  --color-secondary: #5A8A90;
+  --color-accent: #C4705A;
+  --text-primary: #F3ECDA;
+  --text-secondary: #c4b89a;
+  --text-muted: #8a8168;
+  --bg-primary: #141E2B;
+  --bg-secondary: #1B2A3D;
+  --border-color: #3A4A5D;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+}
+
+/* ============ SKIN: Golden Hour (warm sunset) ============ */
+[data-skin="golden-hour"] {
+  --color-primary: #EFA83D;
+  --color-primary-light: #F5C06A;
+  --color-secondary: #E2673B;
+  --color-accent: #8FAE93;
+  --text-primary: #241220;
+  --text-secondary: #6b4a5e;
+  --text-muted: #a08898;
+  --bg-primary: #FBEEDD;
+  --bg-secondary: #FFF8F0;
+  --border-color: #E8D5C0;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+}
+
+[data-skin="golden-hour"].dark {
+  --color-primary: #EFA83D;
+  --color-primary-light: #F5C06A;
+  --color-secondary: #E2673B;
+  --color-accent: #8FAE93;
+  --text-primary: #FBEEDD;
+  --text-secondary: rgba(251, 238, 221, 0.7);
+  --text-muted: rgba(251, 238, 221, 0.45);
+  --bg-primary: #1A0E18;
+  --bg-secondary: #241220;
+  --border-color: rgba(251, 238, 221, 0.12);
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+}
+
+/* ============ SKIN: Biglietto (Milan metro ticket) ============ */
+[data-skin="biglietto"] {
+  --color-primary: #D1122E;
+  --color-primary-light: #E8455C;
+  --color-secondary: #00854A;
+  --color-accent: #0058A3;
+  --text-primary: #1C1712;
+  --text-secondary: #5a4f3a;
+  --text-muted: #8a7a4e;
+  --bg-primary: #EFDEA6;
+  --bg-secondary: #F5E9C0;
+  --border-color: #1C1712;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Oswald', system-ui, sans-serif;
+}
+
+[data-skin="biglietto"].dark {
+  --color-primary: #E8455C;
+  --color-primary-light: #D1122E;
+  --color-secondary: #2DAF6E;
+  --color-accent: #3B8FD9;
+  --text-primary: #EFDEA6;
+  --text-secondary: #c4b078;
+  --text-muted: #8a7a4e;
+  --bg-primary: #14110D;
+  --bg-secondary: #1C1712;
+  --border-color: #4A4030;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Oswald', system-ui, sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -19,6 +19,7 @@ const loginSchema = z.object({ email: z.string().email(), password: z.string() }
 const refreshSchema = z.object({ refreshToken: z.string() });
 const forgotPasswordSchema = z.object({ email: z.string().email() });
 const resetPasswordSchema = z.object({ token: z.string(), password: z.string().min(8).max(128) });
+const changePasswordSchema = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8).max(128) });
 
 const generateInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/);
@@ -111,6 +112,20 @@ router.post('/verify-email', async (req: Request, res: Response) => {
     await db.update(users).set({ emailVerified: true, updatedAt: new Date() }).where(eq(users.id, payload.userId));
     res.json({ message: 'Email verified successfully' });
   } catch { throw AppError.badRequest('Invalid or expired verification token'); }
+});
+
+router.post('/change-password', authenticate, validateBody(changePasswordSchema), async (req: Request, res: Response) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user!.userId;
+  const userRows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!userRows.length) throw AppError.notFound('User not found');
+  const user = userRows[0];
+  if (!user.passwordHash) throw AppError.badRequest('Account uses social login');
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw AppError.unauthorized('Current password is incorrect');
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+  res.json({ message: 'Password changed successfully' });
 });
 
 router.get('/me', authenticate, async (req: Request, res: Response) => {

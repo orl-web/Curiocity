@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 import './sentry'
 import { ThemeProvider } from './components/ThemeProvider'
+import { I18nProvider } from './i18n'
 import App from './App'
 import './index.css'
 
@@ -22,9 +23,11 @@ createRoot(document.getElementById('root')!).render(
     <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <I18nProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
     </HelmetProvider>
