@@ -13,3 +13,4 @@ frontend.log
 vite.log
 temp_req.json
 services/api/server.err
+docs/redesings.md
