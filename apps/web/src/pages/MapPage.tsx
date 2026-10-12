@@ -58,6 +58,36 @@ const DURATIONS = ['all', 'short', 'medium', 'long']
 const DUR_LABELS: Record<string, string> = { all: 'All', short: '<1h', medium: '1-2h', long: '>2h' }
 const CITIES = ['Rome', 'Paris', 'Amsterdam', 'Lisbon', 'Florence', 'Prague', 'Vienna', 'Athens', 'Dublin', 'Kyoto', 'Barcelona', 'Tokyo', 'Milan']
 
+// Durations are free text: '2.5h', '1h 30m', '45m', '90 min'… parseInt() alone truncates
+// at the decimal point or space, so '2.5h' became 2 minutes. Returns null when unknown.
+function parseDurationMinutes(duration?: string | null): number | null {
+  if (!duration) return null
+  const s = duration.toLowerCase()
+  const hours = s.match(/(\d+(?:\.\d+)?)\s*h/)
+  const mins = s.match(/(\d+)\s*m/)
+  if (!hours && !mins) return null
+  const minutes = (hours ? parseFloat(hours[1]) * 60 : 0) + (mins ? parseInt(mins[1], 10) : 0)
+  return minutes > 0 ? Math.round(minutes) : null
+}
+
+// Shared by the map markers and the result count so the two can never disagree.
+// Unknown durations match only the 'all' bucket.
+function matchesFilters(g: Guide, catFilter: string, durFilter: string, timeFilter: TimeSlot[]): boolean {
+  if (catFilter !== 'all' && g.category !== catFilter) return false
+  if (durFilter !== 'all') {
+    const m = parseDurationMinutes(g.duration)
+    if (m == null) return false
+    if (durFilter === 'short' && m >= 60) return false
+    if (durFilter === 'medium' && (m < 60 || m > 120)) return false
+    if (durFilter === 'long' && m <= 120) return false
+  }
+  if (timeFilter.length > 0) {
+    const gSlots = g.timeSlots || []
+    if (gSlots.length > 0 && !gSlots.some((s) => timeFilter.includes(s))) return false
+  }
+  return true
+}
+
 export default function MapPage() {
   const navigate = useNavigate()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -184,20 +214,7 @@ export default function MapPage() {
       if (layer instanceof L.Marker && layer !== userMarkerRef.current) map.removeLayer(layer)
     })
 
-    const filtered = nearbyGuides.filter((g) => {
-      if (catFilter !== 'all' && g.category !== catFilter) return false
-      if (durFilter !== 'all') {
-        const m = parseInt(g.duration || '0') || (g.duration?.includes('h') ? parseInt(g.duration) * 60 : 0)
-        if (durFilter === 'short' && m > 90) return false
-        if (durFilter === 'medium' && (m < 60 || m > 150)) return false
-        if (durFilter === 'long' && m < 120) return false
-      }
-      if (timeFilter.length > 0) {
-        const gSlots = g.timeSlots || []
-        if (gSlots.length > 0 && !gSlots.some((s) => timeFilter.includes(s))) return false
-      }
-      return true
-    })
+    const filtered = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter))
 
     const all: { guide: Guide; color: string; saved: boolean }[] = []
     if (showSaved) savedGuides.forEach((g) => all.push({ guide: g, color: SAVED_COLOR, saved: true }))
@@ -241,14 +258,7 @@ export default function MapPage() {
     }
   }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter, timeFilter])
 
-  const filteredCount = nearbyGuides.filter((g) => {
-    if (catFilter !== 'all' && g.category !== catFilter) return false
-    if (timeFilter.length > 0) {
-      const gSlots = g.timeSlots || []
-      if (gSlots.length > 0 && !gSlots.some((s) => timeFilter.includes(s))) return false
-    }
-    return true
-  }).length
+  const filteredCount = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter)).length
   const previewStops = previewGuide?.stops?.filter((s) => s.latitude != null && s.longitude != null) || []
 
   return (
@@ -381,6 +391,9 @@ export default function MapPage() {
                 ))}
                 {previewGuide.validUntil && (
                   <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#E24B4A]/10 text-[#E24B4A]">⏱ Limited</span>
+                )}
+                {previewGuide.recurrence && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#378ADD]/10 text-[#378ADD]">🔁 {previewGuide.recurrence.daysOfWeek.map((d) => ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d] || d).join(', ')}</span>
                 )}
               </div>
               {Number(previewGuide.rating) > 0 && <div className="text-[11px] text-[#BA7517] mt-0.5">{Number(previewGuide.rating).toFixed(1)}★</div>}
