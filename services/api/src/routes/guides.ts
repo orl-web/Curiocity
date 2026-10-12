@@ -59,7 +59,10 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   const userId = req.user?.userId;
 
   const hasLocation = lat != null && lng != null;
-  const haversineExpr = hasLocation ? sql<number>`round((SELECT min(6371 * acos(cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null), 2)` : sql<number>`null`;
+  // Nearest stop distance in km. acos() is undefined outside [-1,1]; float drift can push
+  // the argument past that, so clamp with least/greatest. round() only accepts numeric.
+  const nearestStopKm = sql`6371 * acos(least(1, greatest(-1, cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))))`;
+  const haversineExpr = hasLocation ? sql<number>`round((SELECT min(${nearestStopKm}) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null)::numeric, 2)::float8` : sql<number>`null`;
   const selectFields: any = { id: guides.id, title: guides.title, city: guides.city, category: guides.category, creatorId: guides.creatorId, creatorInitials: guides.creatorInitials, creatorColor: guides.creatorColor, verified: guides.verified, duration: guides.duration, distance: guides.distance, priceModel: guides.priceModel, rating: guides.rating, description: guides.description, coverImageUrl: guides.coverImageUrl, isPublished: guides.isPublished, createdAt: guides.createdAt, timeSlots: guides.timeSlots, validFrom: guides.validFrom, validUntil: guides.validUntil, recurrence: guides.recurrence, mapCenterLat: guides.mapCenterLat, mapCenterLng: guides.mapCenterLng, creator: { id: users.id, displayName: users.displayName, initials: users.initials, avatarUrl: users.avatarUrl } };
   if (hasLocation) selectFields.distance_km = haversineExpr;
   let baseQuery: any = db.select(selectFields).from(guides).leftJoin(users, eq(guides.creatorId, users.id));
@@ -74,7 +77,7 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   if (search) { const term = `%${search}%`; conditions.push(or(like(guides.title, term), like(guides.city, term), like(guides.description, term), like(users.displayName, term))); }
   if (hasLocation) {
     const radiusKm = radius || 10;
-    conditions.push(sql`(SELECT min(6371 * acos(cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null) <= ${radiusKm}`);
+    conditions.push(sql`(SELECT min(${nearestStopKm}) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null) <= ${radiusKm}`);
   }
   // Validity window: exclude expired guides unless includeExpired
   if (!includeExpired) {
@@ -105,7 +108,7 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   total = Number(totalResult[0]?.count) || 0;
 
   if (hasLocation) {
-    baseQuery = baseQuery.orderBy(sql`(SELECT min(6371 * acos(cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null)`);
+    baseQuery = baseQuery.orderBy(sql`(SELECT min(${nearestStopKm}) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null)`);
   } else {
     switch (sort) { case 'popular': case 'rating': baseQuery = baseQuery.orderBy(desc(guides.rating)); break; case 'title': baseQuery = baseQuery.orderBy(asc(guides.title)); break; default: baseQuery = baseQuery.orderBy(desc(guides.createdAt)); }
   }

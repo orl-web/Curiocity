@@ -276,3 +276,53 @@ describe('time slots and validity windows', () => {
     expect(detail.body.validUntil).toBeTruthy();
   });
 });
+
+describe('nearby distance query', () => {
+  const email = `vitest-nearby-${Date.now()}@example.com`;
+  const password = 'Test1234!';
+  let token = '';
+
+  // Distinctive remote coordinates so this guide is not near the seed guides.
+  const EIFFEL = { lat: 48.8584, lng: 2.2945 };
+
+  beforeAll(async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      email, password, displayName: 'Nearby User', role: 'creator',
+    });
+    token = reg.body.token || reg.body.accessToken;
+    if (!token) {
+      const login = await request(app).post('/api/auth/login').send({ email, password });
+      token = login.body.token || login.body.accessToken;
+    }
+    expect(token).toBeTruthy();
+
+    const created = await request(app)
+      .post('/api/guides')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'Distance probe tower walk',
+        city: 'Paris',
+        category: 'architecture',
+        stops: [
+          { name: 'Eiffel Tower', latitude: EIFFEL.lat, longitude: EIFFEL.lng },
+          { name: 'Trocadéro', latitude: 48.8627, longitude: 2.2876 },
+        ],
+      });
+    expect(created.status).toBe(201);
+  });
+
+  it('returns 200 with distance_km for guides inside the radius', async () => {
+    const res = await request(app).get(`/api/guides?lat=${EIFFEL.lat}&lng=${EIFFEL.lng}&radius=2&limit=50`);
+    expect(res.status).toBe(200);
+    const hit = res.body.guides.find((g: any) => g.title === 'Distance probe tower walk');
+    expect(hit).toBeDefined();
+    expect(typeof hit.distance_km).toBe('number');
+    expect(hit.distance_km).toBeLessThan(2);
+  });
+
+  it('excludes guides outside the radius', async () => {
+    const res = await request(app).get('/api/guides?lat=41.9028&lng=12.4964&radius=2&limit=50');
+    expect(res.status).toBe(200);
+    expect(res.body.guides.some((g: any) => g.title === 'Distance probe tower walk')).toBe(false);
+  });
+});
