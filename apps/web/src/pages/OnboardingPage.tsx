@@ -1,27 +1,30 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useI18n, type TranslationKey } from '../i18n'
 
-const steps = [
+const buildSteps = (t: (k: TranslationKey) => string) => [
   {
     emoji: '🌍',
-    title: 'Discover hidden gems',
-    subtitle: 'Audio walking guides created by local experts',
+    title: t('onb.step1Title'),
+    subtitle: t('onb.step1Sub'),
   },
   {
     features: [
-      { emoji: '🎧', title: 'Listen & Walk', desc: 'Audio guides lead you through each stop' },
-      { emoji: '🔓', title: 'Free or Unlock', desc: 'Watch a short ad to unlock premium guides' },
-      { emoji: '💚', title: 'Support Locals', desc: 'Creators earn from your explorations' },
+      { emoji: '🎧', title: t('onb.listenWalk'), desc: t('onb.listenWalkDesc') },
+      { emoji: '🔓', title: t('onb.freeOrUnlock'), desc: t('onb.freeOrUnlockDesc') },
+      { emoji: '💚', title: t('onb.supportLocals'), desc: t('onb.supportLocalsDesc') },
     ],
   },
   {
-    title: 'Get started',
-    subtitle: 'Join thousands exploring cities with local audio guides',
+    title: t('onb.step3Title'),
+    subtitle: t('onb.step3Sub'),
   },
 ]
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
+  const { t } = useI18n()
+  const steps = buildSteps(t)
   const [step, setStep] = useState(0)
 
   const complete = () => {
@@ -98,15 +101,15 @@ export default function OnboardingPage() {
             <div className="flex flex-col gap-3 w-full">
               <button
                 onClick={handleSignup}
-                className="w-full py-3 rounded-lg bg-[#1D9E75] text-white text-[14px] font-bold border-none cursor-pointer"
+                className="w-full py-3 rounded-lg bg-[var(--color-primary)] text-white text-[14px] font-bold border-none cursor-pointer"
               >
-                Sign Up Free
+                {t('landing.signupFree')}
               </button>
               <button
                 onClick={handleLogin}
                 className="w-full py-3 rounded-lg bg-transparent border border-black/10 dark:border-white/9 text-[#F27732] dark:text-[#f5f5f3] text-[14px] font-bold cursor-pointer"
               >
-                I already have an account
+                {t('onb.haveAccount')}
               </button>
             </div>
           </div>
@@ -119,15 +122,15 @@ export default function OnboardingPage() {
             onClick={() => setStep(step - 1)}
             className="w-full max-w-[340px] py-3 rounded-lg bg-transparent border border-black/10 dark:border-white/9 text-[#5f5e5a] dark:text-[#a8a7a0] text-[14px] font-bold cursor-pointer"
           >
-            Back
+            {t('onb.back')}
           </button>
         )}
         {step < 2 ? (
           <button
             onClick={handleNext}
-            className="w-full max-w-[340px] py-3 rounded-lg bg-[#1D9E75] text-white text-[14px] font-bold border-none cursor-pointer"
+            className="w-full max-w-[340px] py-3 rounded-lg bg-[var(--color-primary)] text-white text-[14px] font-bold border-none cursor-pointer"
           >
-            Next
+            {t('onb.next')}
           </button>
         ) : null}
 
@@ -136,7 +139,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={`w-[7px] h-[7px] rounded-full transition-colors ${
-                i === step ? 'bg-[#1D9E75]' : 'bg-[#d4d3cf]'
+                i === step ? 'bg-[var(--color-primary)]' : 'bg-[#d4d3cf]'
               }`}
             />
           ))}
@@ -146,7 +149,7 @@ export default function OnboardingPage() {
           onClick={handleSkip}
           className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] bg-transparent border-none cursor-pointer underline"
         >
-          Skip — use offline
+          {t('auth.skipOffline')}
         </button>
       </div>
     </div>

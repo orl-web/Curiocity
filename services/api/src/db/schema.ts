@@ -7,6 +7,9 @@ export const userRoleEnum = pgEnum('user_role', ['user', 'creator', 'admin']);
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'completed', 'failed', 'refunded']);
 export const reportStatusEnum = pgEnum('report_status', ['pending', 'reviewed', 'resolved', 'dismissed']);
 
+export type TimeSlot = 'morning' | 'afternoon' | 'evening' | 'night';
+export interface GuideRecurrence { daysOfWeek: number[]; slots: TimeSlot[] }
+
 export const users = pgTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
@@ -43,6 +46,10 @@ export const guides = pgTable('guides', {
   mapCenterLat: decimal('map_center_lat', { precision: 10, scale: 7 }),
   mapCenterLng: decimal('map_center_lng', { precision: 10, scale: 7 }),
   mapZoom: integer('map_zoom').default(13),
+  timeSlots: text('time_slots').array(),
+  validFrom: timestamp('valid_from', { withTimezone: true }),
+  validUntil: timestamp('valid_until', { withTimezone: true }),
+  recurrence: jsonb('recurrence').$type<GuideRecurrence | null>(),
   isPublished: boolean('is_published').default(false).notNull(),
   publishedAt: timestamp('published_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

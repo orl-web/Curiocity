@@ -21,7 +21,7 @@ function makeIcon(index: number, active: boolean) {
   const size = active ? 30 : 24
   return L.divIcon({
     className: '',
-    html: `<div style="width:${size}px;height:${size}px;background:${active ? '#E24B4A' : '#1D9E75'};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${active ? 13 : 11}px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff;">${index + 1}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;background:${active ? '#E24B4A' : 'var(--color-primary)'};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${active ? 13 : 11}px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff;">${index + 1}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   })

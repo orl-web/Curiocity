@@ -34,7 +34,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm text-[#5f5e5a] mb-4">{this.state.error.message || 'An unexpected error occurred'}</p>
             <button
               onClick={this.handleReset}
-              className="w-full py-2.5 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer"
+              className="w-full py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer"
             >
               Try Again
             </button>

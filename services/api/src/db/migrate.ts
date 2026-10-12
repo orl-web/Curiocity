@@ -304,6 +304,10 @@ async function migrate() {
 
   await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS price INTEGER DEFAULT 99 NOT NULL`;
   await client`ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_out BOOLEAN DEFAULT false NOT NULL`;
+  await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS time_slots TEXT[]`;
+  await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS valid_from TIMESTAMPTZ`;
+  await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS valid_until TIMESTAMPTZ`;
+  await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS recurrence JSONB`;
 
   await client`
     CREATE TABLE IF NOT EXISTS newsletter_subscribers (

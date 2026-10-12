@@ -10,10 +10,10 @@ export default function PrivacyPage() {
         url="/privacy"
       />
       <nav className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/5">
-        <Link to="/" className="text-lg font-bold text-[#1D9E75] no-underline">
+        <Link to="/" className="text-lg font-bold text-[var(--color-primary)] no-underline">
           Curio<span className="text-[#F27732] dark:text-[#f5f5f3]">City</span>
         </Link>
-        <Link to="/" className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] no-underline hover:text-[#1D9E75]">Back to home</Link>
+        <Link to="/" className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] no-underline hover:text-[var(--color-primary)]">Back to home</Link>
       </nav>
 
       <main className="max-w-2xl mx-auto px-6 py-10">
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">7. Changes & contact</h2>
-            <p>We will notify you of material changes via email. Questions about this policy: <a href="mailto:privacy@curiocity.app" className="text-[#1D9E75] underline">privacy@curiocity.app</a></p>
+            <p>We will notify you of material changes via email. Questions about this policy: <a href="mailto:privacy@curiocity.app" className="text-[var(--color-primary)] underline">privacy@curiocity.app</a></p>
           </section>
         </div>
       </main>

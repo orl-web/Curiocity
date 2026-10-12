@@ -7,7 +7,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full" aria-live="polite" role="status">
-        <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[#1D9E75] rounded-full animate-spin"></div>
+        <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[var(--color-primary)] rounded-full animate-spin"></div>
         <span className="sr-only">Loading</span>
       </div>
     )

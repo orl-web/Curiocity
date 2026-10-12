@@ -12,7 +12,7 @@ export default function NotFoundPage() {
       </p>
       <Link
         to="/"
-        className="px-6 py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-full no-underline hover:bg-[#178563] active:scale-95 transition-transform"
+        className="px-6 py-3 bg-[var(--color-primary)] text-white text-sm font-bold rounded-full no-underline hover:bg-[#178563] active:scale-95 transition-transform"
       >
         Back to guides
       </Link>

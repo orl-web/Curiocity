@@ -5,6 +5,7 @@ import { es } from './es'
 import { fr } from './fr'
 import { de } from './de'
 
+export type { TranslationKey }
 export type Lang = 'en' | 'it' | 'es' | 'fr' | 'de'
 
 export const LANGUAGES: { code: Lang; label: string; nativeLabel: string }[] = [

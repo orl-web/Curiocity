@@ -14,6 +14,13 @@ export interface User {
   updatedAt: string
 }
 
+export type TimeSlot = 'morning' | 'afternoon' | 'evening' | 'night'
+
+export interface GuideRecurrence {
+  daysOfWeek: number[]
+  slots: TimeSlot[]
+}
+
 export interface Guide {
   id: string
   creatorId: string
@@ -34,6 +41,12 @@ export interface Guide {
   createdAt: string
   updatedAt?: string
   distance_km?: number
+  timeSlots?: TimeSlot[] | null
+  validFrom?: string | null
+  validUntil?: string | null
+  recurrence?: GuideRecurrence | null
+  mapCenterLat?: number | string | null
+  mapCenterLng?: number | string | null
   user?: User
   stops?: GuideStop[]
   costs?: GuideCost[]
@@ -146,6 +159,8 @@ export interface GuideFilters {
   lat?: number
   lng?: number
   radius?: number
+  timeSlots?: TimeSlot[]
+  includeExpired?: boolean
 }
 
 export interface GpsPoint {

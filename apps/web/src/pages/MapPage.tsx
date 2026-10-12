@@ -6,11 +6,18 @@ import { getAllOfflineGuides } from '../utils/offlineStorage'
 import { getAllImportedLocations } from '../utils/importedLocations'
 import { sanitizeHtml } from '../utils/sanitize'
 import SEO from '../components/SEO'
-import type { Guide } from '../types'
+import type { Guide, TimeSlot } from '../types'
 import type { ImportedLocation } from '../utils/importedLocations'
 
 const ROUTE_COLORS = ['#1D9E75', '#E24B4A', '#378ADD', '#D4537E', '#BA7517', '#7B61FF', '#FF6B35', '#00B4D8']
 const SAVED_COLOR = '#BA7517'
+
+const TIME_SLOT_META: Record<TimeSlot, { emoji: string; label: string }> = {
+  morning: { emoji: '🌅', label: 'Morning' },
+  afternoon: { emoji: '☀️', label: 'Afternoon' },
+  evening: { emoji: '🌇', label: 'Evening' },
+  night: { emoji: '🌙', label: 'Night' },
+}
 
 const CATEGORY_EMOJI: Record<string, string> = {
   food: '🍽', architecture: '🏛', history: '📜', art: '🎨', nature: '🌿', characters: '🧑', general: '📍',
@@ -65,6 +72,7 @@ export default function MapPage() {
   const [showImported, setShowImported] = useState(true)
   const [catFilter, setCatFilter] = useState<string>('all')
   const [durFilter, setDurFilter] = useState<string>('all')
+  const [timeFilter, setTimeFilter] = useState<TimeSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [geoError, setGeoError] = useState<string | null>(null)
   const [showSearch, setShowSearch] = useState(false)
@@ -74,7 +82,6 @@ export default function MapPage() {
   const [showLayers, setShowLayers] = useState(false)
   const userMarkerRef = useRef<L.Marker | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!navigator.geolocation) { setGeoError('Geolocation not available — showing all guides'); return }
@@ -104,26 +111,12 @@ export default function MapPage() {
     return () => { map.remove(); mapInstance.current = null }
   }, [])
 
-  useEffect(() => {
-    const map = mapInstance.current
-    if (!map) return
-    const onMoveEnd = () => {
-      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
-      fetchTimerRef.current = setTimeout(() => {
-        const c = map.getCenter()
-        fetchGuides(c.lat, c.lng)
-      }, 300)
-    }
-    map.on('moveend', onMoveEnd)
-    return () => { map.off('moveend', onMoveEnd); if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current) }
-  }, [])
-
-  const fetchGuides = useCallback((lat: number, lng: number) => {
+  const fetchAllGuides = useCallback((extra?: { city?: string }) => {
     setLoading(true)
     abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
-    guides.list({ limit: 50, lat, lng, radius: 50 }).then((res) => {
+    guides.list({ limit: 50, ...(extra || {}) }).then((res) => {
       if (ctrl.signal.aborted) return
       setNearbyGuides(Array.isArray(res.data.guides || res.data) ? res.data.guides || res.data : [])
     }).catch(() => { if (!ctrl.signal.aborted) setNearbyGuides([]) })
@@ -131,17 +124,10 @@ export default function MapPage() {
   }, [])
 
   useEffect(() => {
-    if (userLat != null && userLng != null) {
-      fetchGuides(userLat, userLng)
-    } else {
-      setLoading(true)
-      guides.list({ limit: 50 }).then((res) => {
-        setNearbyGuides(Array.isArray(res.data.guides || res.data) ? res.data.guides || res.data : [])
-      }).catch(() => setNearbyGuides([])).finally(() => setLoading(false))
-    }
+    fetchAllGuides()
     getAllOfflineGuides().then(setSavedGuides).catch(() => {})
     getAllImportedLocations().then(setImportedLocations).catch(() => {})
-  }, [userLat, userLng, fetchGuides])
+  }, [fetchAllGuides])
 
   useEffect(() => {
     if (userLat == null || userLng == null || !mapInstance.current) return
@@ -206,6 +192,10 @@ export default function MapPage() {
         if (durFilter === 'medium' && (m < 60 || m > 150)) return false
         if (durFilter === 'long' && m < 120) return false
       }
+      if (timeFilter.length > 0) {
+        const gSlots = g.timeSlots || []
+        if (gSlots.length > 0 && !gSlots.some((s) => timeFilter.includes(s))) return false
+      }
       return true
     })
 
@@ -219,11 +209,17 @@ export default function MapPage() {
       const stops = (guide.stops || []).filter((s) => s.latitude != null && s.longitude != null && !isNaN(Number(s.latitude)) && !isNaN(Number(s.longitude)))
       const cc = CATEGORY_COLORS[guide.category] || color
 
-      if (stops.length < 2) {
-        if (stops.length === 1) {
-          L.marker([Number(stops[0].latitude), Number(stops[0].longitude)], { icon: categoryIcon(guide.category, cc) })
+      if (stops.length === 0) {
+        const clat = Number(guide.mapCenterLat), clng = Number(guide.mapCenterLng)
+        if (!isNaN(clat) && !isNaN(clng) && (clat !== 0 || clng !== 0)) {
+          L.marker([clat, clng], { icon: categoryIcon(guide.category, cc) })
             .addTo(map).on('click', () => handleGuideClick(guide, 0))
         }
+        return
+      }
+      if (stops.length === 1) {
+        L.marker([Number(stops[0].latitude), Number(stops[0].longitude)], { icon: categoryIcon(guide.category, cc) })
+          .addTo(map).on('click', () => handleGuideClick(guide, 0))
         return
       }
 
@@ -243,9 +239,16 @@ export default function MapPage() {
           .addTo(map).bindPopup(`<div style="font-family:system-ui;max-width:180px"><strong style="font-size:12px">📌 ${sanitizeHtml(loc.name)}</strong></div>`, { closeButton: false, offset: [0, -4] })
       })
     }
-  }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter])
+  }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter, timeFilter])
 
-  const filteredCount = nearbyGuides.filter((g) => catFilter === 'all' || g.category === catFilter).length
+  const filteredCount = nearbyGuides.filter((g) => {
+    if (catFilter !== 'all' && g.category !== catFilter) return false
+    if (timeFilter.length > 0) {
+      const gSlots = g.timeSlots || []
+      if (gSlots.length > 0 && !gSlots.some((s) => timeFilter.includes(s))) return false
+    }
+    return true
+  }).length
   const previewStops = previewGuide?.stops?.filter((s) => s.latitude != null && s.longitude != null) || []
 
   return (
@@ -269,9 +272,9 @@ export default function MapPage() {
                 className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[#b4b2a9]" />
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => { handleSearch(''); setSearchCity('') }} className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#1D9E75] text-white cursor-pointer border-none">All</button>
+              <button onClick={() => { handleSearch(''); setSearchCity('') }} className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--color-primary)] text-white cursor-pointer border-none">All</button>
               {CITIES.map((c) => (
-                <button key={c} onClick={() => { handleSearch(c); setSearchCity(c) }}                 className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${searchCity === c ? 'bg-[#1D9E75] border-[#1D9E75] text-white' : 'bg-white dark:bg-[#272725] border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>{c}</button>
+                <button key={c} onClick={() => { handleSearch(c); setSearchCity(c) }}                 className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${searchCity === c ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white' : 'bg-white dark:bg-[#272725] border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>{c}</button>
               ))}
             </div>
           </div>
@@ -282,7 +285,7 @@ export default function MapPage() {
 
       {loading && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1001]">
-          <div className="w-8 h-8 border-[3px] border-[#e5e4e7] border-t-[#1D9E75] rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-[3px] border-[#e5e4e7] border-t-[var(--color-primary)] rounded-full animate-spin"></div>
         </div>
       )}
 
@@ -293,7 +296,7 @@ export default function MapPage() {
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
         </button>
         <button onClick={() => setShowLayers(!showLayers)} aria-label="Layers"
-          className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center cursor-pointer backdrop-blur-sm ${showLayers ? 'bg-[#1D9E75]' : 'bg-[#1a1a18]/80 dark:bg-[#f5f5f3]/90'}`}>
+          className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center cursor-pointer backdrop-blur-sm ${showLayers ? 'bg-[var(--color-primary)]' : 'bg-[#1a1a18]/80 dark:bg-[#f5f5f3]/90'}`}>
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.5">
             <polygon points="8,1 15,5 15,11 8,15 1,11 1,5"/>
             <line x1="1" y1="5" x2="8" y2="9"/><line x1="15" y1="5" x2="8" y2="9"/>
@@ -307,7 +310,7 @@ export default function MapPage() {
           {['all', 'food', 'architecture', 'history', 'art', 'nature', 'characters'].map((cat) => (
             <button key={cat} onClick={() => setCatFilter(cat)}
               className={`shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${
-                catFilter === cat ? 'bg-[#1D9E75] border-[#1D9E75] text-white shadow-md' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0] backdrop-blur-sm'
+                catFilter === cat ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-md' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0] backdrop-blur-sm'
               }`}>
               {cat === 'all' ? 'All' : `${CATEGORY_EMOJI[cat] || ''}`}
             </button>
@@ -323,6 +326,17 @@ export default function MapPage() {
             </button>
           ))}
         </div>
+        <div className="flex gap-1 mt-1">
+          {(Object.keys(TIME_SLOT_META) as TimeSlot[]).map((t) => (
+            <button key={t} onClick={() => setTimeFilter((prev) => prev.includes(t) ? prev.filter((s) => s !== t) : [...prev, t])}
+              title={TIME_SLOT_META[t].label}
+              className={`px-2 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
+                timeFilter.includes(t) ? 'bg-[#7B61FF] border-[#7B61FF] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0] backdrop-blur-sm'
+              }`}>
+              {TIME_SLOT_META[t].emoji}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Layers panel — toggleable */}
@@ -330,8 +344,8 @@ export default function MapPage() {
         <div className="absolute bottom-16 left-3 z-[1000] bg-white/95 dark:bg-[#1e1e1c]/95 rounded-2xl shadow-xl p-3 backdrop-blur-sm w-[180px]">
           <div className="text-[10px] font-bold text-[#b4b2a9] uppercase tracking-wider mb-2">Layers</div>
           <label className="flex items-center gap-2 mb-2 cursor-pointer">
-            <input type="checkbox" checked={showNearby} onChange={(e) => setShowNearby(e.target.checked)} className="accent-[#1D9E75] w-3.5 h-3.5" />
-            <span className="w-4 h-[2px]" style={{ borderTop: '2px dashed #1D9E75' }} />
+            <input type="checkbox" checked={showNearby} onChange={(e) => setShowNearby(e.target.checked)} className="accent-[var(--color-primary)] w-3.5 h-3.5" />
+            <span className="w-4 h-[2px]" style={{ borderTop: '2px dashed var(--color-primary)' }} />
             <span className="text-[12px] font-bold">Nearby ({filteredCount})</span>
           </label>
           <label className="flex items-center gap-2 mb-2 cursor-pointer">
@@ -361,6 +375,14 @@ export default function MapPage() {
             <div className="flex-1 min-w-0">
               <div className="text-[15px] font-bold leading-tight">{previewGuide.title}</div>
               <div className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] mt-0.5">{previewGuide.city} · {previewGuide.duration || '?'} · {previewStops.length} stops</div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {previewGuide.timeSlots && previewGuide.timeSlots.length > 0 && previewGuide.timeSlots.map((t) => (
+                  <span key={t} className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#7B61FF]/10 text-[#7B61FF]">{TIME_SLOT_META[t].emoji} {TIME_SLOT_META[t].label}</span>
+                ))}
+                {previewGuide.validUntil && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#E24B4A]/10 text-[#E24B4A]">⏱ Limited</span>
+                )}
+              </div>
               {Number(previewGuide.rating) > 0 && <div className="text-[11px] text-[#BA7517] mt-0.5">{Number(previewGuide.rating).toFixed(1)}★</div>}
             </div>
             <button onClick={() => setPreviewGuide(null)} className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[#5f5e5a] dark:text-[#a8a7a0] text-sm cursor-pointer shrink-0">✕</button>
@@ -375,9 +397,9 @@ export default function MapPage() {
           <div className="flex-1 overflow-y-auto px-4 py-2">
             {previewStops.map((s, i) => (
               <div key={s.id || i}
-                className={`flex items-center gap-2.5 py-2 cursor-pointer rounded-lg transition-colors ${i === activeStopIdx ? 'bg-[#1D9E75]/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                className={`flex items-center gap-2.5 py-2 cursor-pointer rounded-lg transition-colors ${i === activeStopIdx ? 'bg-[var(--color-primary)]/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                 onClick={() => { setActiveStopIdx(i); mapInstance.current?.flyTo([Number(s.latitude), Number(s.longitude)], 17, { duration: 0.5 }) }}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${i === activeStopIdx ? 'bg-[#1D9E75] text-white' : 'bg-black/10 dark:bg-white/10 text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${i === activeStopIdx ? 'bg-[var(--color-primary)] text-white' : 'bg-black/10 dark:bg-white/10 text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -398,7 +420,7 @@ export default function MapPage() {
 
           <div className="px-4 py-3 border-t border-black/10 dark:border-white/9 flex gap-2">
             <button onClick={() => navigate(`/guide/${previewGuide.id}`)}
-              className="flex-1 py-2.5 rounded-xl bg-[#1D9E75] text-white text-[13px] font-bold border-none cursor-pointer">
+              className="flex-1 py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-[13px] font-bold border-none cursor-pointer">
               Open Guide →
             </button>
             <button onClick={() => setPreviewGuide(null)}

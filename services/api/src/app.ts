@@ -67,9 +67,11 @@ const authLimiter = rateLimit({
     res.status(429).json({ error: 'Too many authentication attempts' });
   },
 });
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
+if (config.NODE_ENV !== 'test') {
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+  app.use('/api/auth/forgot-password', authLimiter);
+}
 
 const createLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,

@@ -75,10 +75,10 @@ export default function CreatorPage() {
               <path d="M11 4L6 9l5 5"/>
             </svg>
           </button>
-          <div className="flex-1 text-lg font-bold text-[#1D9E75]">profile</div>
+          <div className="flex-1 text-lg font-bold text-[var(--color-primary)]">profile</div>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[#1D9E75] rounded-full animate-spin"></div>
+          <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[var(--color-primary)] rounded-full animate-spin"></div>
         </div>
       </div>
     )
@@ -93,11 +93,11 @@ export default function CreatorPage() {
               <path d="M11 4L6 9l5 5"/>
             </svg>
           </button>
-          <div className="flex-1 text-lg font-bold text-[#1D9E75]">profile</div>
+          <div className="flex-1 text-lg font-bold text-[var(--color-primary)]">profile</div>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center py-12 gap-3">
           <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error || 'User not found'}</p>
-          <button onClick={loadProfile} className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
+          <button onClick={loadProfile} className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
         </div>
       </div>
     )
@@ -112,13 +112,13 @@ export default function CreatorPage() {
             <path d="M11 4L6 9l5 5"/>
           </svg>
         </button>
-        <div className="flex-1 text-lg font-bold text-[#1D9E75]">profile</div>
+        <div className="flex-1 text-lg font-bold text-[var(--color-primary)]">profile</div>
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
         <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-[18px] flex flex-col gap-3 shrink-0">
           <div className="flex items-start gap-3.5">
-            <div className="w-[58px] h-[58px] rounded-full bg-[#1D9E75] flex items-center justify-center text-[21px] font-bold text-white shrink-0">
+            <div className="w-[58px] h-[58px] rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[21px] font-bold text-white shrink-0">
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
               ) : (
@@ -129,7 +129,7 @@ export default function CreatorPage() {
               <div className="flex items-center gap-2">
                 <div className="text-lg font-bold truncate">{profile.displayName}</div>
                 {profile.role === 'creator' && (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="#1D9E75">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="var(--color-primary)">
                     <path d="M8 0l2.47 5.01L16 5.81l-4 3.9.94 5.49L8 12.49l-4.94 2.7L4 9.71 0 5.81l5.53-.8z"/>
                   </svg>
                 )}
@@ -152,7 +152,7 @@ export default function CreatorPage() {
                 className={`px-4 py-[7px] rounded-full text-[13px] font-bold border-none cursor-pointer shrink-0 transition-colors ${
                   following
                     ? 'bg-[#f5f5f3] dark:bg-[#272725] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10'
-                    : 'bg-[#1D9E75] text-white'
+                    : 'bg-[var(--color-primary)] text-white'
                 } ${followLoading ? 'opacity-50' : ''}`}
               >
                 {followLoading ? '...' : following ? 'Following' : 'Follow'}
@@ -186,7 +186,7 @@ export default function CreatorPage() {
 
 function MiniGuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-[11px] flex gap-[9px] items-center cursor-pointer hover:border-[#1D9E75] transition-colors" onClick={onClick}>
+    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-[11px] flex gap-[9px] items-center cursor-pointer hover:border-[var(--color-primary)] transition-colors" onClick={onClick}>
       <div className="w-[50px] h-[44px] rounded-lg bg-[#f5f5f3] dark:bg-[#272725] flex-shrink-0 overflow-hidden">
         {guide.coverImage || guide.coverImageUrl ? (
           <img src={guide.coverImage || guide.coverImageUrl} alt="" className="w-full h-full object-cover" />

@@ -71,8 +71,12 @@ export const auth = {
 }
 
 export const guides = {
-  list: (filters?: GuideFilters) =>
-    api.get<{ guides: Guide[]; total: number }>('/guides', { params: filters }),
+  list: (filters?: GuideFilters) => {
+    const params: Record<string, unknown> = { ...filters }
+    if (filters?.timeSlots && filters.timeSlots.length > 0) params.timeSlots = filters.timeSlots.join(',')
+    else delete params.timeSlots
+    return api.get<{ guides: Guide[]; total: number }>('/guides', { params })
+  },
   detail: (id: string) => api.get<Guide>(`/guides/${id}`),
   create: (data: Partial<Guide>) => api.post<Guide>('/guides', data),
   update: (id: string, data: Partial<Guide>) => api.patch<Guide>(`/guides/${id}`, data),

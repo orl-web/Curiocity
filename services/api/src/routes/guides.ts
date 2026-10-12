@@ -16,11 +16,17 @@ const sanitizeXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;'
 
 const categorySchema = z.enum(['food', 'architecture', 'history', 'art', 'nature', 'characters', 'general']);
 const priceModelSchema = z.enum(['free', 'paid', 'ad']);
+const timeSlotSchema = z.enum(['morning', 'afternoon', 'evening', 'night']);
+const recurrenceSchema = z.object({ daysOfWeek: z.array(z.number().min(0).max(6)).min(1).max(7), slots: z.array(timeSlotSchema).min(1).max(4) });
 
 const createGuideSchema = z.object({
   title: z.string().min(1).max(200), city: z.string().min(1).max(100), category: categorySchema,
   duration: z.string().max(20).optional(), distance: z.string().max(20).optional(),
   priceModel: priceModelSchema.default('free'), description: z.string().optional(),
+  timeSlots: z.array(timeSlotSchema).max(4).optional(),
+  validFrom: z.string().datetime().optional().or(z.literal('')),
+  validUntil: z.string().datetime().optional().or(z.literal('')),
+  recurrence: recurrenceSchema.optional(),
   stops: z.array(z.object({ name: z.string().min(1).max(200), description: z.string().optional(), photoUrl: z.string().url().optional().or(z.literal('')), videoUrl: z.string().url().optional().or(z.literal('')), customAudioUrl: z.string().url().optional().or(z.literal('')), links: z.array(z.object({ title: z.string(), url: z.string().url() })).default([]) })).min(2).max(20),
   costs: z.object({ tickets: z.number().optional(), meals: z.number().optional(), transport: z.number().optional() }).optional(),
   nearby: z.array(z.object({ direction: z.string(), name: z.string(), distance: z.string() })).optional(),
@@ -29,7 +35,7 @@ const createGuideSchema = z.object({
 
 const updateGuideSchema = createGuideSchema.partial();
 
-const querySchema = z.object({ category: categorySchema.optional(), city: z.string().optional(), priceModel: priceModelSchema.optional(), search: z.string().optional(), creatorId: z.string().uuid().optional(), savedBy: z.string().uuid().optional(), createdBy: z.string().uuid().optional(), limit: z.coerce.number().min(1).max(50).default(20), offset: z.coerce.number().min(0).default(0), sort: z.enum(['newest', 'popular', 'rating', 'title']).default('newest'), lat: z.coerce.number().min(-90).max(90).optional(), lng: z.coerce.number().min(-180).max(180).optional(), radius: z.coerce.number().min(1).max(500).default(10).optional() });
+const querySchema = z.object({ category: categorySchema.optional(), city: z.string().optional(), priceModel: priceModelSchema.optional(), search: z.string().optional(), creatorId: z.string().uuid().optional(), savedBy: z.string().uuid().optional(), createdBy: z.string().uuid().optional(), limit: z.coerce.number().min(1).max(50).default(20), offset: z.coerce.number().min(0).default(0), sort: z.enum(['newest', 'popular', 'rating', 'title']).default('newest'), lat: z.coerce.number().min(-90).max(90).optional(), lng: z.coerce.number().min(-180).max(180).optional(), radius: z.coerce.number().min(1).max(500).default(10).optional(), timeSlots: z.string().optional(), includeExpired: z.coerce.boolean().optional() });
 
 const idParamSchema = z.object({ id: z.string().uuid() });
 const saveDraftSchema = z.object({ title: z.string().max(200).optional(), city: z.string().max(100).optional(), category: categorySchema.optional(), duration: z.string().max(20).optional(), distance: z.string().max(20).optional(), priceModel: priceModelSchema.default('free'), description: z.string().optional(), stops: z.array(z.object({ name: z.string().max(200), description: z.string().optional(), photoUrl: z.string().optional(), videoUrl: z.string().optional(), links: z.array(z.object({ title: z.string(), url: z.string().url() })).default([]) })).default([]), costs: z.object({ tickets: z.number().optional(), meals: z.number().optional(), transport: z.number().optional() }).optional() });
@@ -47,12 +53,12 @@ router.get('/autocomplete', validateQuery(z.object({ q: z.string().min(1).max(10
 });
 
 router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, res: Response) => {
-  const { category, city, priceModel, search, creatorId, savedBy, createdBy, limit, offset, sort, lat, lng, radius } = req.query as any;
+  const { category, city, priceModel, search, creatorId, savedBy, createdBy, limit, offset, sort, lat, lng, radius, timeSlots, includeExpired } = req.query as any;
   const userId = req.user?.userId;
 
   const hasLocation = lat != null && lng != null;
   const haversineExpr = hasLocation ? sql<number>`round((SELECT min(6371 * acos(cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null), 2)` : sql<number>`null`;
-  const selectFields: any = { id: guides.id, title: guides.title, city: guides.city, category: guides.category, creatorId: guides.creatorId, creatorInitials: guides.creatorInitials, creatorColor: guides.creatorColor, verified: guides.verified, duration: guides.duration, distance: guides.distance, priceModel: guides.priceModel, rating: guides.rating, description: guides.description, coverImageUrl: guides.coverImageUrl, isPublished: guides.isPublished, createdAt: guides.createdAt, creator: { id: users.id, displayName: users.displayName, initials: users.initials, avatarUrl: users.avatarUrl } };
+  const selectFields: any = { id: guides.id, title: guides.title, city: guides.city, category: guides.category, creatorId: guides.creatorId, creatorInitials: guides.creatorInitials, creatorColor: guides.creatorColor, verified: guides.verified, duration: guides.duration, distance: guides.distance, priceModel: guides.priceModel, rating: guides.rating, description: guides.description, coverImageUrl: guides.coverImageUrl, isPublished: guides.isPublished, createdAt: guides.createdAt, timeSlots: guides.timeSlots, validFrom: guides.validFrom, validUntil: guides.validUntil, recurrence: guides.recurrence, mapCenterLat: guides.mapCenterLat, mapCenterLng: guides.mapCenterLng, creator: { id: users.id, displayName: users.displayName, initials: users.initials, avatarUrl: users.avatarUrl } };
   if (hasLocation) selectFields.distance_km = haversineExpr;
   let baseQuery: any = db.select(selectFields).from(guides).leftJoin(users, eq(guides.creatorId, users.id));
 
@@ -67,6 +73,19 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   if (hasLocation) {
     const radiusKm = radius || 10;
     conditions.push(sql`(SELECT min(6371 * acos(cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null) <= ${radiusKm}`);
+  }
+  // Validity window: exclude expired guides unless includeExpired
+  if (!includeExpired) {
+    conditions.push(sql`(guides.valid_until IS NULL OR guides.valid_until > now())`);
+    conditions.push(sql`(guides.valid_from IS NULL OR guides.valid_from <= now())`);
+  }
+  // Time-slot overlap: guide matches if it has no slots (anytime) or shares any requested slot
+  if (timeSlots) {
+    const slots = String(timeSlots).split(',').map((s: string) => s.trim()).filter(Boolean);
+    if (slots.length > 0) {
+      const slotsArrayLiteral = `ARRAY[${slots.map((s) => `'${s.replace(/'/g, "''")}'`).join(',')}]::text[]`;
+      conditions.push(sql`(guides.time_slots IS NULL OR cardinality(guides.time_slots) = 0 OR guides.time_slots && ${sql.raw(slotsArrayLiteral)})`);
+    }
   }
 
   baseQuery = baseQuery.where(and(...conditions));
@@ -145,7 +164,7 @@ router.post('/', authenticate, validateBody(createGuideSchema), async (req: Requ
   const guideId = uuidv4(); const now = new Date();
 
   await db.transaction(async (tx) => {
-    await tx.insert(guides).values({ id: guideId, title: data.title, city: data.city, category: data.category, creatorId: userId, creatorInitials: user.initials, creatorColor: user.role === 'creator' ? '#1D9E75' : '#888780', verified: user.role === 'creator' || user.role === 'admin', duration: data.duration, distance: data.distance, priceModel: data.priceModel, description: data.description, isPublished: true, publishedAt: now });
+    await tx.insert(guides).values({ id: guideId, title: data.title, city: data.city, category: data.category, creatorId: userId, creatorInitials: user.initials, creatorColor: user.role === 'creator' ? '#1D9E75' : '#888780', verified: user.role === 'creator' || user.role === 'admin', duration: data.duration, distance: data.distance, priceModel: data.priceModel, description: data.description, timeSlots: data.timeSlots && data.timeSlots.length > 0 ? data.timeSlots : null, validFrom: data.validFrom ? new Date(data.validFrom) : null, validUntil: data.validUntil ? new Date(data.validUntil) : null, recurrence: data.recurrence || null, isPublished: true, publishedAt: now });
     for (let i = 0; i < data.stops.length; i++) {
       const stop = data.stops[i];
       let lat = stop.latitude, lng = stop.longitude;
@@ -181,6 +200,10 @@ router.patch('/:id', authenticate, validateParams(idParamSchema), validateBody(u
   });
 
   const { stops, costs, nearby, resources, ...guideData } = data;
+  if (guideData.validFrom !== undefined) guideData.validFrom = guideData.validFrom ? new Date(guideData.validFrom) : null;
+  if (guideData.validUntil !== undefined) guideData.validUntil = guideData.validUntil ? new Date(guideData.validUntil) : null;
+  if (guideData.timeSlots !== undefined && Array.isArray(guideData.timeSlots) && guideData.timeSlots.length === 0) guideData.timeSlots = null;
+  if (guideData.recurrence !== undefined && guideData.recurrence && (!guideData.recurrence.daysOfWeek?.length || !guideData.recurrence.slots?.length)) guideData.recurrence = null;
   await db.update(guides).set({ ...guideData, updatedAt: new Date() }).where(eq(guides.id, id));
 
   if (stops) { await db.delete(guideStops).where(eq(guideStops.guideId, id)); for (let i = 0; i < stops.length; i++) { const stop = stops[i]; await db.insert(guideStops).values({ id: uuidv4(), guideId: id, stopOrder: i, name: stop.name, description: stop.description, photoUrl: stop.photoUrl, videoUrl: stop.videoUrl, customAudioUrl: stop.customAudioUrl, links: stop.links }); } }

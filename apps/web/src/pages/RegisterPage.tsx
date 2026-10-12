@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n } from '../i18n'
 import SEO from '../components/SEO'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { register } = useAuth()
+  const { t } = useI18n()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -27,7 +29,7 @@ export default function RegisterPage() {
       await register(formData)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed')
+      setError(err.response?.data?.message || t('auth.registerFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -38,10 +40,10 @@ export default function RegisterPage() {
       <SEO title="Register" description="Create your CurioCity account and start exploring" />
       <div className="w-full max-w-[400px] bg-white dark:bg-[#1e1e1c] rounded-xl border border-black/10 dark:border-white/9 p-6">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-[#1D9E75]">
-            Curio<span className="text-[#1D9E75]">City</span>
+          <h1 className="text-2xl font-bold text-[var(--color-primary)]">
+            Curio<span className="text-[var(--color-primary)]">City</span>
           </h1>
-          <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] mt-2">Create your account</p>
+          <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] mt-2">{t('auth.createSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -50,7 +52,7 @@ export default function RegisterPage() {
           )}
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="register-displayname" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Display Name</label>
+            <label htmlFor="register-displayname" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">{t('auth.displayName')}</label>
             <input
               id="register-displayname"
               type="text"
@@ -59,12 +61,12 @@ export default function RegisterPage() {
               aria-required="true"
               onChange={handleChange}
               required
-              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[#1D9E75]"
+              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[var(--color-primary)]"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="register-username" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Username</label>
+            <label htmlFor="register-username" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">{t('auth.username')}</label>
             <input
               id="register-username"
               type="text"
@@ -73,12 +75,12 @@ export default function RegisterPage() {
               aria-required="true"
               onChange={handleChange}
               required
-              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[#1D9E75]"
+              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[var(--color-primary)]"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="register-email" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Email</label>
+            <label htmlFor="register-email" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">{t('common.email')}</label>
             <input
               id="register-email"
               type="email"
@@ -87,12 +89,12 @@ export default function RegisterPage() {
               aria-required="true"
               onChange={handleChange}
               required
-              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[#1D9E75]"
+              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[var(--color-primary)]"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="register-password" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Password</label>
+            <label htmlFor="register-password" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">{t('common.password')}</label>
             <input
               id="register-password"
               type="password"
@@ -102,29 +104,29 @@ export default function RegisterPage() {
               onChange={handleChange}
               required
               minLength={8}
-              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[#1D9E75]"
+              className="bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-lg py-2.5 px-3 text-sm outline-none focus:border-[var(--color-primary)]"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer disabled:opacity-50"
+            className="w-full py-3 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer disabled:opacity-50"
           >
-            {isLoading ? 'Creating account…' : 'Create account'}
+            {isLoading ? t('auth.signingUp') : t('auth.createCta')}
           </button>
         </form>
 
         <div className="mt-4 text-center text-sm text-[#5f5e5a] dark:text-[#a8a7a0]">
-          Already have an account?{' '}
-          <Link to="/login" className="text-[#1D9E75] font-bold no-underline">Sign in</Link>
+          {t('auth.haveAccount')}{' '}
+          <Link to="/login" className="text-[var(--color-primary)] font-bold no-underline">{t('common.signIn')}</Link>
         </div>
         <div className="mt-3 text-center">
           <button
             onClick={() => { localStorage.setItem('onboarding_complete', 'true'); navigate('/'); }}
             className="text-xs text-[#b4b2a9] dark:text-[#706f6a] hover:text-[#5f5e5a] bg-transparent border-none cursor-pointer underline"
           >
-            Skip — use offline
+            {t('auth.skipOffline')}
           </button>
         </div>
       </div>

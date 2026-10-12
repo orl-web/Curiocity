@@ -3,7 +3,11 @@ import { useNavigate, Link } from 'react-router-dom'
 import { guides, getCancelToken } from '../services/api'
 import SEO from '../components/SEO'
 import { GuideSkeletonList } from '../components/Skeleton'
-import type { Guide, GuideFilters } from '../types'
+import { useI18n } from '../i18n'
+import type { Guide, GuideFilters, TimeSlot } from '../types'
+
+const TIME_SLOTS: TimeSlot[] = ['morning', 'afternoon', 'evening', 'night']
+const TIME_SLOT_EMOJI: Record<TimeSlot, string> = { morning: '🌅', afternoon: '☀️', evening: '🌇', night: '🌙' }
 
 const categories = [
   { id: 'all', label: 'All' },
@@ -18,6 +22,7 @@ const categories = [
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [guidesList, setGuidesList] = useState<Guide[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -26,6 +31,7 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [suggestions, setSuggestions] = useState<Guide[]>([])
   const [activeCategory, setActiveCategory] = useState('all')
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [nearMeActive, setNearMeActive] = useState(false)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -50,7 +56,7 @@ export default function HomePage() {
 
   useEffect(() => {
     loadGuides()
-  }, [activeCategory, debouncedSearch, nearMeActive, userLocation])
+  }, [activeCategory, debouncedSearch, nearMeActive, userLocation, timeSlots])
 
   useEffect(() => {
     if (search.length >= 2) {
@@ -84,6 +90,7 @@ export default function HomePage() {
         }
       }
       if (debouncedSearch) filters.search = debouncedSearch
+      if (timeSlots.length > 0) filters.timeSlots = timeSlots
       if (nearMeActive && userLocation) {
         filters.lat = userLocation.lat
         filters.lng = userLocation.lng
@@ -134,9 +141,9 @@ export default function HomePage() {
     <div className="flex flex-col min-h-0">
       <SEO />
       {/* Header */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 sticky top-0 z-20 shrink-0">
-        <h1 className="text-lg font-bold text-[#1D9E75] tracking-tight">
-          Curio<span className="text-[#1D9E75]">City</span>
+      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 sticky top-0 z-20 shrink-0" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+        <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-display)' }}>
+          Curio<span style={{ color: 'var(--color-primary)' }}>City</span>
         </h1>
         <div className="flex-1 relative" role="search" ref={searchRef}>
           <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b4b2a9] dark:text-[#706f6a]">
@@ -150,7 +157,7 @@ export default function HomePage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true) }}
             onFocus={() => search.length >= 2 && setShowSuggestions(true)}
-            className="w-full bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-full py-[7px] pl-[30px] pr-8 text-[13px] text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+            className="w-full bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-full py-[7px] pl-[30px] pr-8 text-[13px] text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
           />
           {search && (
             <button onClick={() => { setSearch(''); setSuggestions([]); setShowSuggestions(false) }}
@@ -171,15 +178,15 @@ export default function HomePage() {
             </div>
           )}
         </div>
-        <div className="w-[30px] h-[30px] rounded-full bg-[#1D9E75] flex items-center justify-center text-[11px] font-bold text-white cursor-pointer shrink-0">
+        <div className="w-[30px] h-[30px] rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[11px] font-bold text-white cursor-pointer shrink-0">
           ?
         </div>
       </div>
 
       {/* Status Bar */}
-      <div className="px-4 py-[5px] bg-[#f5f5f3] dark:bg-[#272725] border-b border-black/10 dark:border-white/9 text-[11px] text-[#b4b2a9] dark:text-[#706f6a] flex items-center gap-[5px] shrink-0">
-        <div className="w-[5px] h-[5px] rounded-full bg-[#1D9E75]"></div>
-        <span aria-live="polite">{guidesList?.length || 0} guides available</span>
+      <div className="px-4 py-[5px] bg-[#f5f5f3] dark:bg-[#272725] border-b border-black/10 dark:border-white/9 text-[11px] text-[#b4b2a9] dark:text-[#706f6a] flex items-center gap-[5px] shrink-0" style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+        <div className="w-[5px] h-[5px] rounded-full" style={{ background: 'var(--color-primary)' }}></div>
+        <span aria-live="polite">{guidesList?.length || 0} {t('home.guidesAvailable')}</span>
       </div>
 
       {/* Category Filter */}
@@ -190,9 +197,10 @@ export default function HomePage() {
             onClick={() => setActiveCategory(cat.id)}
             className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
               activeCategory === cat.id
-                ? 'bg-[#1D9E75] border-[#1D9E75] text-white font-bold'
+                ? 'font-bold text-white'
                 : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
             }`}
+            style={activeCategory === cat.id ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
           >
             {cat.label}
           </button>
@@ -201,12 +209,40 @@ export default function HomePage() {
           onClick={handleNearMe}
           className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
             nearMeActive
-              ? 'bg-[#1D9E75] border-[#1D9E75] text-white font-bold'
+              ? 'font-bold text-white'
               : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
           }`}
+          style={nearMeActive ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
         >
           📍 Near Me
         </button>
+      </div>
+
+      {/* Time-of-day filter */}
+      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none', background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+        <span className="shrink-0 self-center text-[11px] font-bold text-[#b4b2a9] dark:text-[#706f6a] uppercase tracking-wide">{t('time.filter')}</span>
+        {TIME_SLOTS.map((slot) => (
+          <button
+            key={slot}
+            onClick={() => setTimeSlots((prev) => prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot])}
+            aria-pressed={timeSlots.includes(slot)}
+            className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
+              timeSlots.includes(slot)
+                ? 'bg-[#7B61FF] border-[#7B61FF] text-white font-bold'
+                : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
+            }`}
+          >
+            {TIME_SLOT_EMOJI[slot]} {t(`time.${slot}` as any)}
+          </button>
+        ))}
+        {timeSlots.length > 0 && (
+          <button
+            onClick={() => setTimeSlots([])}
+            className="shrink-0 px-3 py-[5px] rounded-full border border-black/20 dark:border-white/18 text-[12px] cursor-pointer whitespace-nowrap bg-transparent text-[#5f5e5a] dark:text-[#a8a7a0]"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {locationError && (
@@ -226,20 +262,20 @@ export default function HomePage() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
-            <button onClick={loadGuides} aria-label="Retry loading guides" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
+            <button onClick={loadGuides} aria-label="Retry loading guides" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : (guidesList || []).length === 0 ? (
           <div role="status" className="flex flex-col items-center justify-center py-12 gap-3 text-center">
             <span className="text-3xl" aria-hidden="true">🔍</span>
             <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0]">
-              {search || activeCategory !== 'all' || nearMeActive
+              {search || activeCategory !== 'all' || nearMeActive || timeSlots.length > 0
                 ? 'No guides match your filters — try a different category or clear the search.'
                 : 'No guides yet — be the first to create one!'}
             </p>
-            {search || activeCategory !== 'all' || nearMeActive ? (
-              <button onClick={() => { setSearch(''); setActiveCategory('all'); setNearMeActive(false) }} className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Clear filters</button>
+            {search || activeCategory !== 'all' || nearMeActive || timeSlots.length > 0 ? (
+              <button onClick={() => { setSearch(''); setActiveCategory('all'); setNearMeActive(false); setTimeSlots([]) }} className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Clear filters</button>
             ) : (
-              <Link to="/create" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold no-underline">Create a guide</Link>
+              <Link to="/create" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold no-underline">Create a guide</Link>
             )}
           </div>
         ) : (
@@ -315,7 +351,7 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
   }, [guide, isFirstTwo])
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[#1D9E75] active:scale-[0.98] transition-all" onClick={onClick}>
+    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] active:scale-[0.98] transition-all" onClick={onClick}>
       <div className="p-3">
         <div className="flex gap-[11px]">
           <div className="w-[86px] h-[76px] rounded-lg border border-black/10 dark:border-white/9 flex-shrink-0 overflow-hidden relative">
@@ -338,7 +374,7 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
           <div className="flex-1 min-w-0">
             <div className="text-[14px] font-bold leading-[1.3] mb-1 line-clamp-2">{guide.title}</div>
             <div className="flex items-center gap-[5px] mb-[5px]">
-              <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: '#1D9E75' }}>
+              <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: 'var(--color-primary)' }}>
                 {guide.user?.displayName?.charAt(0) || '?'}
               </div>
               <span className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">{guide.user?.displayName || 'Creator'}</span>
@@ -357,6 +393,21 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
                   📏 {guide.distance}
                 </span>
               )}
+              {guide.timeSlots && guide.timeSlots.length > 0 && guide.timeSlots.length < 4 && (
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#7B61FF]/10 text-[#7B61FF] border border-[#7B61FF]/20">
+                  {guide.timeSlots.map((s) => TIME_SLOT_EMOJI[s]).join(' ')}
+                </span>
+              )}
+              {guide.validUntil && (
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#E24B4A]/10 text-[#E24B4A] border border-[#E24B4A]/20">
+                  ⏱ Limited
+                </span>
+              )}
+              {guide.recurrence && (
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#378ADD]/10 text-[#378ADD] border border-[#378ADD]/20">
+                  🔁
+                </span>
+              )}
             </div>
             {Number(guide.rating) > 0 && (
               <div className="text-[11px] text-[#BA7517] mt-1">{Number(guide.rating).toFixed(1)}★</div>
@@ -367,7 +418,7 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
       <div className="px-3 py-2 border-t border-black/10 dark:border-white/9 flex items-center justify-between">
         <span className="text-[12px] font-bold">
           {guide.priceModel === 'free' ? (
-            <span className="text-[#1D9E75]">Free</span>
+            <span className="text-[var(--color-primary)]">Free</span>
           ) : guide.priceModel === 'paid' ? (
             <span className="text-[#BA7517]">€0.99</span>
           ) : (
@@ -375,7 +426,7 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
           )}
         </span>
         <span className="text-[12px] text-[#b4b2a9] dark:text-[#706f6a]">
-          {guide.distance_km != null && <span className="text-[#1D9E75] font-bold mr-2">{guide.distance_km} km</span>}
+          {guide.distance_km != null && <span className="text-[var(--color-primary)] font-bold mr-2">{guide.distance_km} km</span>}
           {guide.city}
         </span>
       </div>

@@ -56,7 +56,7 @@ export default function AnalyticsPage() {
             <path d="M11 4L6 9l5 5"/>
           </svg>
         </button>
-        <div className="flex-1 text-lg font-bold text-[#1D9E75]">
+        <div className="flex-1 text-lg font-bold text-[var(--color-primary)]">
           creator analytics
         </div>
       </div>
@@ -64,19 +64,19 @@ export default function AnalyticsPage() {
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 min-h-0">
         {isLoading ? (
           <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true" role="status">
-            <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[#1D9E75] rounded-full animate-spin"></div>
+            <div className="w-7 h-7 border-[2.5px] border-[#e5e4e7] border-t-[var(--color-primary)] rounded-full animate-spin"></div>
             <span className="sr-only">Loading analytics</span>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
-            <button onClick={loadAnalytics} aria-label="Retry loading analytics" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
+            <button onClick={loadAnalytics} aria-label="Retry loading analytics" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : (
           <>
             <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-4 text-center">
               <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wide mb-1">Total Earnings</div>
-              <div className="text-3xl font-bold text-[#1D9E75]">€{earnings.totalEarnings.toFixed(2)}</div>
+              <div className="text-3xl font-bold text-[var(--color-primary)]">€{earnings.totalEarnings.toFixed(2)}</div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

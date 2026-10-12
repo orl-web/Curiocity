@@ -21,6 +21,11 @@ export default function CreatePage() {
   const [mealCost, setMealCost] = useState('')
   const [transportCost, setTransportCost] = useState('')
   const [accessModel, setAccessModel] = useState<'free' | 'paid' | 'ad'>('free')
+  const [timeSlots, setTimeSlots] = useState<string[]>([])
+  const [limitedEvent, setLimitedEvent] = useState(false)
+  const [validFrom, setValidFrom] = useState('')
+  const [validUntil, setValidUntil] = useState('')
+  const [recurDays, setRecurDays] = useState<number[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
@@ -146,6 +151,10 @@ export default function CreatePage() {
         duration,
         distance,
         priceModel: accessModel,
+        timeSlots: timeSlots.length > 0 ? timeSlots : undefined,
+        validFrom: limitedEvent && validFrom ? new Date(validFrom).toISOString() : undefined,
+        validUntil: limitedEvent && validUntil ? new Date(validUntil).toISOString() : undefined,
+        recurrence: limitedEvent && recurDays.length > 0 && timeSlots.length > 0 ? { daysOfWeek: recurDays, slots: timeSlots } : undefined,
         stops: stops.map((s, i) => ({
           name: s.name,
           description: s.description,
@@ -172,7 +181,7 @@ export default function CreatePage() {
             <path d="M11 4L6 9l5 5"/>
           </svg>
         </button>
-        <div className="flex-1 text-lg font-bold text-[#1D9E75]">new guide</div>
+        <div className="flex-1 text-lg font-bold text-[var(--color-primary)]">new guide</div>
       </div>
 
       {/* Form */}
@@ -187,7 +196,7 @@ export default function CreatePage() {
             aria-required="true"
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Hidden baroque gems in Palermo"
-            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75] w-full"
+            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)] w-full"
           />
         </div>
 
@@ -201,7 +210,7 @@ export default function CreatePage() {
             aria-required="true"
             onChange={(e) => setCity(e.target.value)}
             placeholder="e.g. Palermo, Sicily"
-            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75] w-full"
+            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)] w-full"
           />
         </div>
 
@@ -217,7 +226,7 @@ export default function CreatePage() {
                 onClick={() => setCategory(cat)}
                 className={`py-2 px-[5px] rounded-lg border text-[12px] font-bold cursor-pointer text-center ${
                   category === cat
-                    ? 'bg-[#E1F5EE] border-[#1D9E75] text-[#085041]'
+                    ? 'bg-[#E1F5EE] border-[var(--color-primary)] text-[#085041]'
                     : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
                 }`}
               >
@@ -241,7 +250,7 @@ export default function CreatePage() {
             <button
               onClick={() => descInputRef.current?.click()}
               disabled={isImportingDesc}
-              className="text-[11px] font-bold text-[#1D9E75] bg-transparent border-none cursor-pointer hover:underline disabled:opacity-50"
+              className="text-[11px] font-bold text-[var(--color-primary)] bg-transparent border-none cursor-pointer hover:underline disabled:opacity-50"
             >
               {isImportingDesc ? 'Importing…' : '📄 Import file'}
             </button>
@@ -251,7 +260,7 @@ export default function CreatePage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What will travellers discover? Paste or import from .txt, .md, .docx files"
-            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75] w-full min-h-[68px] resize-none"
+            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)] w-full min-h-[68px] resize-none"
           />
         </div>
 
@@ -269,7 +278,7 @@ export default function CreatePage() {
             <button
               onClick={() => gpsInputRef.current?.click()}
               disabled={isImportingGps}
-              className="text-[11px] font-bold text-[#1D9E75] bg-transparent border-none cursor-pointer hover:underline disabled:opacity-50"
+              className="text-[11px] font-bold text-[var(--color-primary)] bg-transparent border-none cursor-pointer hover:underline disabled:opacity-50"
             >
               {isImportingGps ? 'Importing…' : `🗺 Import GPS${gpsImportCount > 0 ? ` (${gpsImportCount} added)` : ''}`}
             </button>
@@ -307,16 +316,16 @@ export default function CreatePage() {
               onKeyDown={(e) => e.key === 'Enter' && addStop()}
               placeholder="Place or curiosity name"
               aria-label="Place or curiosity name"
-              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
             />
-            <button onClick={addStop} aria-label="Add stop" className="px-3.5 py-[9px] rounded-lg bg-[#1D9E75] text-white border-none cursor-pointer text-[13px] font-bold whitespace-nowrap">
+            <button onClick={addStop} aria-label="Add stop" className="px-3.5 py-[9px] rounded-lg bg-[var(--color-primary)] text-white border-none cursor-pointer text-[13px] font-bold whitespace-nowrap">
               + Add
             </button>
           </div>
           <button
             onClick={generateDescriptions}
             disabled={isGenerating || stops.length === 0 || !title || !city || !category}
-            className="py-2.5 rounded-lg bg-[#E1F5EE] text-[#085041] text-[13px] font-bold border border-[#1D9E75] cursor-pointer w-full flex items-center justify-center gap-2 hover:bg-[#1D9E75] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="py-2.5 rounded-lg bg-[#E1F5EE] text-[#085041] text-[13px] font-bold border border-[var(--color-primary)] cursor-pointer w-full flex items-center justify-center gap-2 hover:bg-[var(--color-primary)] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg aria-hidden="true" width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
               <polygon points="7,1 8.8,5.5 13.5,5.5 9.7,8.3 11.2,13 7,10 2.8,13 4.3,8.3 0.5,5.5 5.2,5.5"/>
@@ -337,7 +346,7 @@ export default function CreatePage() {
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 1h 30m"
               aria-label="Duration"
-              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
             />
             <label htmlFor="guide-distance" className="sr-only">Distance</label>
             <input
@@ -347,7 +356,7 @@ export default function CreatePage() {
               onChange={(e) => setDistance(e.target.value)}
               placeholder="e.g. 2.5km"
               aria-label="Distance"
-              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
             />
           </div>
         </div>
@@ -364,7 +373,7 @@ export default function CreatePage() {
               onChange={(e) => setTicketCost(e.target.value)}
               placeholder="🎟 Tickets"
               aria-label="Tickets cost"
-              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
             />
             <label htmlFor="meal-cost" className="sr-only">Meals cost</label>
             <input
@@ -374,7 +383,7 @@ export default function CreatePage() {
               onChange={(e) => setMealCost(e.target.value)}
               placeholder="🍽 Meals"
               aria-label="Meals cost"
-              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
             />
             <label htmlFor="transport-cost" className="sr-only">Transport cost</label>
             <input
@@ -384,7 +393,7 @@ export default function CreatePage() {
               onChange={(e) => setTransportCost(e.target.value)}
               placeholder="🚌 Transport"
               aria-label="Transport cost"
-              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[#1D9E75]"
+              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
             />
           </div>
         </div>
@@ -401,7 +410,7 @@ export default function CreatePage() {
                 onClick={() => setAccessModel(model)}
                 className={`flex-1 py-[9px] rounded-lg border text-[12px] font-bold cursor-pointer ${
                   accessModel === model
-                    ? 'border-[#1D9E75] text-[#1D9E75] bg-[#E1F5EE]'
+                    ? 'border-[var(--color-primary)] text-[var(--color-primary)] bg-[#E1F5EE]'
                     : 'border-black/20 dark:border-white/18 bg-white dark:bg-[#1e1e1c] text-[#5f5e5a] dark:text-[#a8a7a0]'
                 }`}
               >
@@ -409,6 +418,83 @@ export default function CreatePage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Time slots */}
+        <div className="flex flex-col gap-[5px]">
+          <div className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Best time to visit <span className="normal-case font-normal">(optional)</span></div>
+          <div className="flex gap-[7px] flex-wrap">
+            {(['morning', 'afternoon', 'evening', 'night'] as const).map((slot) => {
+              const active = timeSlots.includes(slot)
+              return (
+                <button
+                  key={slot}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTimeSlots((prev) => prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot])}
+                  className={`px-3 py-[9px] rounded-lg border text-[12px] font-bold cursor-pointer ${
+                    active
+                      ? 'border-[#7B61FF] text-white bg-[#7B61FF]'
+                      : 'border-black/20 dark:border-white/18 bg-white dark:bg-[#1e1e1c] text-[#5f5e5a] dark:text-[#a8a7a0]'
+                  }`}
+                >
+                  {{ morning: '🌅 Morning', afternoon: '☀️ Afternoon', evening: '🌇 Evening', night: '🌙 Night' }[slot]}
+                </button>
+              )
+            })}
+          </div>
+          <div className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a]">Leave empty for anytime</div>
+        </div>
+
+        {/* Limited-time event */}
+        <div className="flex flex-col gap-[7px]">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={limitedEvent}
+              onChange={(e) => setLimitedEvent(e.target.checked)}
+              className="accent-[var(--color-primary)] w-4 h-4"
+            />
+            <span className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">⏱ Limited-time event</span>
+          </label>
+          <div className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a] -mt-1">Show this guide only between two dates</div>
+          {limitedEvent && (
+            <div className="flex flex-col gap-[9px] p-3 rounded-xl border border-black/10 dark:border-white/9 bg-[#f5f5f3] dark:bg-[#272725]">
+              <div className="flex gap-[7px]">
+                <div className="flex-1 flex flex-col gap-[3px]">
+                  <label htmlFor="valid-from" className="text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase">Starts</label>
+                  <input id="valid-from" type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-[#1e1e1c] text-[13px] text-[#F27732] dark:text-[#f5f5f3]" />
+                </div>
+                <div className="flex-1 flex flex-col gap-[3px]">
+                  <label htmlFor="valid-until" className="text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase">Ends</label>
+                  <input id="valid-until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-[#1e1e1c] text-[13px] text-[#F27732] dark:text-[#f5f5f3]" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-[5px]">
+                <div className="text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase">🔁 Repeat on</div>
+                <div className="flex gap-[5px] flex-wrap">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d, i) => {
+                    const active = recurDays.includes(i)
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setRecurDays((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i].sort())}
+                        className={`w-9 h-9 rounded-lg border text-[11px] font-bold cursor-pointer ${
+                          active ? 'border-[#378ADD] text-white bg-[#378ADD]' : 'border-black/20 dark:border-white/18 bg-white dark:bg-[#1e1e1c] text-[#5f5e5a] dark:text-[#a8a7a0]'
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -426,7 +512,7 @@ export default function CreatePage() {
         <button
           onClick={handlePublish}
           disabled={isPublishing || !title || !city || !category || stops.length < 2}
-          className="w-full py-3 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg aria-hidden="true" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 7.5l4 4L13 3"/>

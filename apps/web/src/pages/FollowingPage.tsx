@@ -33,7 +33,7 @@ export default function FollowingPage() {
     <div className="flex flex-col min-h-0">
       <SEO title="Feed" description="Guides from creators you follow on CurioCity" />
       <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 sticky top-0 z-20 shrink-0">
-        <h1 className="text-lg font-bold text-[#1D9E75] tracking-tight">Feed</h1>
+        <h1 className="text-lg font-bold text-[var(--color-primary)] tracking-tight">Feed</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[11px] min-h-0">
@@ -45,7 +45,7 @@ export default function FollowingPage() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
-            <button onClick={loadFeed} aria-label="Retry loading feed" className="px-4 py-2 rounded-lg bg-[#1D9E75] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
+            <button onClick={loadFeed} aria-label="Retry loading feed" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : guides.length === 0 ? (
           <div role="status" className="flex flex-col items-center justify-center py-12 gap-3">
@@ -77,7 +77,7 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
   }
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[#1D9E75] transition-colors" onClick={onClick}>
+    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] transition-colors" onClick={onClick}>
       <div className="p-3">
         <div className="flex gap-[11px]">
           <div className="w-[86px] h-[76px] rounded-lg bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 flex-shrink-0 overflow-hidden">
@@ -92,7 +92,7 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
           <div className="flex-1 min-w-0">
             <div className="text-[14px] font-bold leading-[1.3] mb-1 line-clamp-2">{guide.title}</div>
             <div className="flex items-center gap-[5px] mb-[5px]">
-              <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: '#1D9E75' }}>
+              <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: 'var(--color-primary)' }}>
                 {guide.user?.displayName?.charAt(0) || '?'}
               </div>
               <span className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">{guide.user?.displayName || 'Creator'}</span>
@@ -117,7 +117,7 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
       <div className="px-3 py-2 border-t border-black/10 dark:border-white/9 flex items-center justify-between">
         <span className="text-[12px] font-bold">
           {guide.priceModel === 'free' ? (
-            <span className="text-[#1D9E75]">Free</span>
+            <span className="text-[var(--color-primary)]">Free</span>
           ) : guide.priceModel === 'paid' ? (
             <span className="text-[#BA7517]">€0.99</span>
           ) : (
@@ -125,7 +125,7 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
           )}
         </span>
         <span className="text-[12px] text-[#b4b2a9] dark:text-[#706f6a]">
-          {guide.distance_km != null && <span className="text-[#1D9E75] font-bold mr-2">{guide.distance_km} km</span>}
+          {guide.distance_km != null && <span className="text-[var(--color-primary)] font-bold mr-2">{guide.distance_km} km</span>}
           {guide.city}
         </span>
       </div>
