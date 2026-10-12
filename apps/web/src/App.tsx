@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useState, Suspense, lazy } from 'react'
+import { Suspense, lazy } from 'react'
 import { AuthProvider } from './hooks/useAuth'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -34,7 +34,7 @@ function PageLoader() {
 
 export default function App() {
   const location = useLocation()
-  const [onboardingComplete] = useState(() => localStorage.getItem('onboarding_complete'))
+  const onboardingComplete = localStorage.getItem('onboarding_complete')
 
   return (
     <ErrorBoundary>
