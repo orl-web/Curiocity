@@ -35,7 +35,7 @@ const createGuideSchema = z.object({
 
 const updateGuideSchema = createGuideSchema.partial();
 
-const querySchema = z.object({ category: categorySchema.optional(), city: z.string().optional(), priceModel: priceModelSchema.optional(), search: z.string().optional(), creatorId: z.string().uuid().optional(), savedBy: z.string().uuid().optional(), createdBy: z.string().uuid().optional(), limit: z.coerce.number().min(1).max(50).default(20), offset: z.coerce.number().min(0).default(0), sort: z.enum(['newest', 'popular', 'rating', 'title']).default('newest'), lat: z.coerce.number().min(-90).max(90).optional(), lng: z.coerce.number().min(-180).max(180).optional(), radius: z.coerce.number().min(1).max(500).default(10).optional(), timeSlots: z.string().optional(), includeExpired: z.coerce.boolean().optional() });
+const querySchema = z.object({ category: categorySchema.optional(), city: z.string().optional(), priceModel: priceModelSchema.optional(), search: z.string().optional(), creatorId: z.string().uuid().optional(), savedBy: z.string().uuid().optional(), createdBy: z.string().uuid().optional(), limit: z.coerce.number().min(1).max(50).default(20), offset: z.coerce.number().min(0).default(0), sort: z.enum(['newest', 'popular', 'rating', 'title']).default('newest'), lat: z.coerce.number().min(-90).max(90).optional(), lng: z.coerce.number().min(-180).max(180).optional(), radius: z.coerce.number().min(1).max(500).default(10).optional(), timeSlots: z.string().optional(), includeExpired: z.string().optional() });
 
 const idParamSchema = z.object({ id: z.string().uuid() });
 const saveDraftSchema = z.object({ title: z.string().max(200).optional(), city: z.string().max(100).optional(), category: categorySchema.optional(), duration: z.string().max(20).optional(), distance: z.string().max(20).optional(), priceModel: priceModelSchema.default('free'), description: z.string().optional(), stops: z.array(z.object({ name: z.string().max(200), description: z.string().optional(), photoUrl: z.string().optional(), videoUrl: z.string().optional(), links: z.array(z.object({ title: z.string(), url: z.string().url() })).default([]) })).default([]), costs: z.object({ tickets: z.number().optional(), meals: z.number().optional(), transport: z.number().optional() }).optional() });
@@ -53,7 +53,9 @@ router.get('/autocomplete', validateQuery(z.object({ q: z.string().min(1).max(10
 });
 
 router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, res: Response) => {
-  const { category, city, priceModel, search, creatorId, savedBy, createdBy, limit, offset, sort, lat, lng, radius, timeSlots, includeExpired } = req.query as any;
+  const { category, city, priceModel, search, creatorId, savedBy, createdBy, limit, offset, sort, lat, lng, radius, timeSlots } = req.query as any;
+  const includeExpiredRaw = (req.query as any).includeExpired;
+  const includeExpired = includeExpiredRaw === true || includeExpiredRaw === 'true' || includeExpiredRaw === '1';
   const userId = req.user?.userId;
 
   const hasLocation = lat != null && lng != null;

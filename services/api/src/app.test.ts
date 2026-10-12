@@ -261,6 +261,9 @@ describe('time slots and validity windows', () => {
 
     const withExpired = await request(app).get('/api/guides?includeExpired=true&limit=50');
     expect(withExpired.body.guides.some((g: any) => g.title === 'Expired tour')).toBe(true);
+
+    const explicitlyNotExpired = await request(app).get('/api/guides?includeExpired=false&limit=50');
+    expect(explicitlyNotExpired.body.guides.some((g: any) => g.title === 'Expired tour')).toBe(false);
   });
 
   it('returns time slot and recurrence fields on the guide detail', async () => {
