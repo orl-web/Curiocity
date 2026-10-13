@@ -159,29 +159,32 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Quick actions row (auth only) */}
-        {isAuthenticated && (
-          <div className="border-b px-4 py-2.5 flex gap-2 shrink-0" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+        {/* Quick actions — Create is available to guests too; it saves a local
+            draft that publishes once they sign up. */}
+        <div className="border-b px-4 py-2.5 flex gap-2 shrink-0" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+          {isAuthenticated && (
             <button onClick={() => navigate('/feed')}
               className="flex-1 py-2.5 rounded-xl border text-[12px] font-bold cursor-pointer flex items-center justify-center gap-1.5"
               style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
               <svg width="14" height="14" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
               {t('profile.feed')}
             </button>
-            <button onClick={() => navigate('/create')}
-              className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold border-none cursor-pointer flex items-center justify-center gap-1.5"
-              style={{ background: 'var(--color-primary)' }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
-              {t('profile.create')}
-            </button>
+          )}
+          <button onClick={() => navigate('/create')}
+            className="flex-1 py-2.5 rounded-xl text-white text-[12px] font-bold border-none cursor-pointer flex items-center justify-center gap-1.5"
+            style={{ background: 'var(--color-primary)' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+            {t('profile.create')}
+          </button>
+          {isAuthenticated && (
             <button onClick={() => navigate('/analytics')}
               className="flex-1 py-2.5 rounded-xl border text-[12px] font-bold cursor-pointer flex items-center justify-center gap-1.5"
               style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
               <svg width="14" height="14" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="9" y="6" width="4" height="14" rx="1"/><rect x="15" y="2" width="4" height="18" rx="1"/></svg>
               {t('profile.analytics')}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Tabs */}
         <div role="tablist" aria-label="Profile tabs" className="flex border-b shrink-0" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>

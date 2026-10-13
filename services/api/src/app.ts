@@ -43,7 +43,10 @@ app.use(express.urlencoded({ extended: true }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  // 100 was too tight: the map page, explore feed, and service worker each fire
+  // list requests per navigation, and a phone plus a desktop on the same Wi-Fi
+  // share one IP budget. Auth and create limiters below stay strict.
+  max: 300,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,

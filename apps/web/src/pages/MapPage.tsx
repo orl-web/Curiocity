@@ -117,6 +117,24 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+// Initial bearing from point 1 to point 2, in degrees clockwise from true north.
+function bearingDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLng = toRad(lng2 - lng1)
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2))
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng)
+  return (Math.atan2(y, x) * 180) / Math.PI
+}
+
+function normalizeDeg(deg: number): number {
+  return ((deg % 360) + 360) % 360
+}
+
+const COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+function compassPoint(deg: number): string {
+  return COMPASS_POINTS[Math.round(normalizeDeg(deg) / 22.5) % 16]
+}
+
 export default function MapPage() {
   const navigate = useNavigate()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -149,6 +167,24 @@ export default function MapPage() {
   // Kept in a ref so the strip can be scrolled to center the active chip on
   // desktop, where it will not auto-scroll into view.
   const stopStripRef = useRef<HTMLDivElement | null>(null)
+
+  // ---- Surprise journey mode ----
+  // A full-screen compass that walks you toward a randomly chosen guide. The
+  // filters here are deliberately separate from the map chips above so rolling
+  // a surprise never changes what the map shows.
+  const [surpriseMode, setSurpriseMode] = useState(false)
+  const [surpriseCat, setSurpriseCat] = useState('all')
+  const [surpriseDur, setSurpriseDur] = useState('all')
+  const [surpriseTime, setSurpriseTime] = useState<TimeSlot[]>([])
+  const [surpriseDist, setSurpriseDist] = useState('any')
+  const [surpriseTarget, setSurpriseTarget] = useState<{ guide: Guide; stop: GuideStop; index: number } | null>(null)
+  const [surpriseRevealed, setSurpriseRevealed] = useState(false)
+  const [surpriseError, setSurpriseError] = useState<string | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<'cat' | 'dur' | 'time' | 'dist' | null>(null)
+  // Device compass heading in degrees clockwise from true north, null when we
+  // do not have sensor access (desktop, or permission not granted on iOS).
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null)
+  const [headingState, setHeadingState] = useState<'unknown' | 'granted' | 'denied' | 'unsupported'>('unknown')
 
   useEffect(() => {
     if (!navigator.geolocation) { setGeoError('Geolocation not available — showing all guides'); return }
@@ -276,6 +312,79 @@ export default function MapPage() {
     }
   }
 
+  // Pick a random guide from the surprise filters. Distance needs a GPS fix;
+  // without one the distance filter is ignored rather than blocking the roll.
+  const rollSurprise = useCallback(() => {
+    const distKm = surpriseDist === 'any' ? null : Number(surpriseDist)
+    const pool = nearbyGuides
+      .filter((g) => matchesFilters(g, surpriseCat, surpriseDur, surpriseTime))
+      .map((g) => {
+        const stops = positionedStops(g)
+        if (stops.length === 0) return null
+        const anchor = nearestStop(stops, userLat, userLng)
+        const km = userLat != null && userLng != null
+          ? haversineKm(userLat, userLng, Number(anchor.stop.latitude), Number(anchor.stop.longitude))
+          : null
+        return { guide: g, stop: anchor.stop, index: anchor.index, km }
+      })
+      .filter((e): e is { guide: Guide; stop: GuideStop; index: number; km: number | null } => e !== null)
+      .filter((e) => distKm == null || e.km == null || e.km <= distKm)
+
+    if (pool.length === 0) {
+      setSurpriseTarget(null)
+      setSurpriseError('No guides match those filters nearby. Try widening them.')
+      return
+    }
+    setSurpriseError(null)
+    setSurpriseRevealed(false)
+    setSurpriseTarget(pool[Math.floor(Math.random() * pool.length)])
+  }, [nearbyGuides, surpriseCat, surpriseDur, surpriseTime, surpriseDist, userLat, userLng])
+
+  const openSurprise = () => {
+    setSurpriseMode(true)
+    setOpenDropdown(null)
+    setSurpriseRevealed(false)
+    rollSurprise()
+  }
+
+  const closeSurprise = () => {
+    setSurpriseMode(false)
+    setOpenDropdown(null)
+    setSurpriseRevealed(false)
+    setSurpriseTarget(null)
+  }
+
+  // Device compass. iOS needs an explicit permission prompt from a tap, so the
+  // overlay shows an "Enable compass" button that calls requestHeading().
+  const requestHeading = async () => {
+    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<'granted' | 'denied'> } | undefined
+    if (!DOE) { setHeadingState('unsupported'); return }
+    if (typeof DOE.requestPermission === 'function') {
+      try {
+        const result = await DOE.requestPermission()
+        setHeadingState(result === 'granted' ? 'granted' : 'denied')
+      } catch {
+        setHeadingState('denied')
+      }
+    } else {
+      setHeadingState('granted')
+    }
+  }
+
+  useEffect(() => {
+    if (!surpriseMode || headingState !== 'granted') return
+    const onOrientation = (e: DeviceOrientationEvent) => {
+      // alpha is the compass heading in degrees; webkitCompassHeading is the
+      // iOS Safari equivalent measured the same way.
+      const webkit = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
+      const alpha = typeof webkit === 'number' ? webkit : e.alpha
+      if (typeof alpha === 'number') setDeviceHeading(normalizeDeg(alpha))
+    }
+    const absolute = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'
+    window.addEventListener(absolute, onOrientation as EventListener)
+    return () => window.removeEventListener(absolute, onOrientation as EventListener)
+  }, [surpriseMode, headingState])
+
   useEffect(() => {
     const map = mapInstance.current
     const base = baseLayerRef.current
@@ -397,7 +506,7 @@ export default function MapPage() {
 
       {/* Only in-flow child; the overlays below are absolute. flex-basis 0 +
           minHeight 0 lets it fill the dvh column without overflowing. */}
-      <div ref={mapRef} className="w-full" style={{ flex: '1 1 0%', minHeight: 0 }} />
+      <div ref={mapRef} className="w-full" style={{ flex: '1 1 0%', minHeight: 0, isolation: 'isolate' }} />
 
       {loading && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1001]">
@@ -410,6 +519,13 @@ export default function MapPage() {
         <button onClick={() => setShowSearch(true)} aria-label="Search"
           className="w-10 h-10 bg-[#1a1a18]/80 dark:bg-[#f5f5f3]/90 rounded-full shadow-lg flex items-center justify-center cursor-pointer backdrop-blur-sm">
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+        </button>
+        <button onClick={openSurprise} aria-label="Surprise journey"
+          className="w-10 h-10 rounded-full shadow-lg flex items-center justify-center cursor-pointer backdrop-blur-sm bg-[#1a1a18]/80 dark:bg-[#f5f5f3]/90">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" strokeWidth="1.5">
+            <circle cx="9" cy="9" r="7.25"/>
+            <path d="M11.8 6.2L10.1 10.1 6.2 11.8 7.9 7.9z" fill="#fff" stroke="none"/>
+          </svg>
         </button>
         <button onClick={() => setShowLayers(!showLayers)} aria-label="Layers"
           className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center cursor-pointer backdrop-blur-sm ${showLayers ? 'bg-[var(--color-primary)]' : 'bg-[#1a1a18]/80 dark:bg-[#f5f5f3]/90'}`}>
@@ -559,6 +675,220 @@ export default function MapPage() {
           </div>
         </div>
       )}
+
+      {/* Surprise journey — dark full-screen compass. No preview cards: the
+          guide stays hidden until the user taps Reveal. */}
+      {surpriseMode && (() => {
+        const stopLat = surpriseTarget ? Number(surpriseTarget.stop.latitude) : null
+        const stopLng = surpriseTarget ? Number(surpriseTarget.stop.longitude) : null
+        const hasTargetPos = stopLat != null && stopLng != null && !isNaN(stopLat) && !isNaN(stopLng)
+        const hasUserPos = userLat != null && userLng != null
+        const bearing = hasTargetPos && hasUserPos && surpriseTarget ? bearingDeg(userLat!, userLng!, stopLat!, stopLng!) : null
+        const distKm = hasTargetPos && hasUserPos && surpriseTarget ? haversineKm(userLat!, userLng!, stopLat!, stopLng!) : null
+        const heading = deviceHeading
+        const relative = bearing != null ? normalizeDeg(bearing - (heading ?? 0)) : null
+        const turn = relative != null ? (relative > 180 ? relative - 360 : relative) : null
+        const distLabel = distKm == null ? null : distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`
+        const targetColor = surpriseTarget ? (CATEGORY_COLORS[surpriseTarget.guide.category] || '#1D9E75') : '#1D9E75'
+
+        const dropdown = (id: 'cat' | 'dur' | 'time' | 'dist', label: string, valueLabel: string, options: { value: string; label: string; onPick: () => void; active: boolean }[]) => (
+          <div key={id} className="relative">
+            <button
+              onClick={() => setOpenDropdown(openDropdown === id ? null : id)}
+              aria-haspopup="listbox"
+              aria-expanded={openDropdown === id}
+              className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold border cursor-pointer whitespace-nowrap backdrop-blur-sm ${
+                valueLabel !== label && valueLabel !== 'All' && valueLabel !== 'Any'
+                  ? 'bg-[#1D9E75] border-[#1D9E75] text-white'
+                  : 'bg-white/10 border-white/15 text-white/80'
+              }`}
+            >
+              {valueLabel === label || valueLabel === 'All' || valueLabel === 'Any' ? label : `${label}: ${valueLabel}`}
+            </button>
+            {openDropdown === id && (
+              <>
+                <div className="fixed inset-0 z-[1]" onClick={() => setOpenDropdown(null)} />
+                <div role="listbox" className="absolute right-0 top-full mt-1.5 z-[2] min-w-[140px] rounded-xl border border-white/12 bg-[#1a1a18] shadow-2xl overflow-hidden">
+                  {options.map((o) => (
+                    <button key={o.value} role="option" aria-selected={o.active} onClick={() => { o.onPick(); setOpenDropdown(null) }}
+                      className={`w-full px-3 py-2 text-left text-[12px] font-bold flex items-center justify-between gap-2 transition-colors ${
+                        o.active ? 'bg-[#1D9E75] text-white' : 'text-white/80 hover:bg-white/10'
+                      }`}>
+                      <span>{o.label}</span>
+                      {o.active && <span aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )
+
+        const catOptions = ['all', 'food', 'architecture', 'history', 'art', 'nature', 'characters'].map((c) => ({
+          value: c,
+          label: c === 'all' ? 'Any category' : `${CATEGORY_EMOJI[c] || ''} ${c.charAt(0).toUpperCase()}${c.slice(1)}`,
+          active: surpriseCat === c,
+          onPick: () => { setSurpriseCat(c); rollSurprise() },
+        }))
+        const durOptions = DURATIONS.map((d) => ({
+          value: d,
+          label: DUR_LABELS[d],
+          active: surpriseDur === d,
+          onPick: () => { setSurpriseDur(d); rollSurprise() },
+        }))
+        const timeOptions = (Object.keys(TIME_SLOT_META) as TimeSlot[]).map((t) => ({
+          value: t,
+          label: `${TIME_SLOT_META[t].emoji} ${TIME_SLOT_META[t].label}`,
+          active: surpriseTime.includes(t),
+          onPick: () => { setSurpriseTime((prev) => prev.includes(t) ? prev.filter((s) => s !== t) : [...prev, t]); setTimeout(rollSurprise, 0) },
+        }))
+        const distOptions = [
+          { value: 'any', label: 'Any distance', active: surpriseDist === 'any', onPick: () => { setSurpriseDist('any'); rollSurprise() } },
+          { value: '1', label: 'Within 1 km', active: surpriseDist === '1', onPick: () => { setSurpriseDist('1'); rollSurprise() } },
+          { value: '2', label: 'Within 2 km', active: surpriseDist === '2', onPick: () => { setSurpriseDist('2'); rollSurprise() } },
+          { value: '5', label: 'Within 5 km', active: surpriseDist === '5', onPick: () => { setSurpriseDist('5'); rollSurprise() } },
+          { value: '10', label: 'Within 10 km', active: surpriseDist === '10', onPick: () => { setSurpriseDist('10'); rollSurprise() } },
+        ]
+
+        return (
+          <div className="fixed inset-0 z-[1300] flex flex-col text-white"
+            style={{
+              background: 'radial-gradient(120% 90% at 50% 30%, #1c1a17 0%, #0c0b0a 62%, #050504 100%)',
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0">
+              <button onClick={closeSurprise} aria-label="Exit surprise journey"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-[15px] cursor-pointer border-none text-white">✕</button>
+              <div className="text-center">
+                <div className="text-[13px] font-bold tracking-wide" style={{ fontFamily: 'var(--font-display)' }}>Surprise journey</div>
+                <div className="text-[10px] text-white/50">Follow the needle</div>
+              </div>
+              <button onClick={rollSurprise} aria-label="New surprise"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-[15px] cursor-pointer border-none text-white">↻</button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex gap-1.5 px-4 pb-2 flex-wrap shrink-0">
+              {dropdown('cat', 'Category', surpriseCat === 'all' ? 'All' : CATEGORY_EMOJI[surpriseCat] || surpriseCat, catOptions)}
+              {dropdown('dur', 'Duration', DUR_LABELS[surpriseDur], durOptions)}
+              {dropdown('time', 'Time', surpriseTime.length === 0 ? 'All' : surpriseTime.map((t) => TIME_SLOT_META[t].emoji).join(' '), timeOptions)}
+              {dropdown('dist', 'Distance', surpriseDist === 'any' ? 'Any' : `< ${surpriseDist} km`, distOptions)}
+            </div>
+
+            {surpriseError && (
+              <div role="alert" className="mx-4 mb-2 px-3 py-2 rounded-xl bg-[#FFF3CD] text-[#664D03] text-[12px] font-bold shrink-0">{surpriseError}</div>
+            )}
+
+            {/* Compass */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-5 min-h-0 px-6">
+              {!hasUserPos && (
+                <div className="text-[12px] text-white/60 text-center max-w-[240px]">
+                  Turn on location to see which way to walk.
+                </div>
+              )}
+
+              <div className="relative shrink-0" style={{ width: 244, height: 244 }}>
+                {/* Outer glow */}
+                <div className="absolute inset-0 rounded-full" style={{ boxShadow: `0 0 60px ${targetColor}33, inset 0 0 40px rgba(0,0,0,.5)` }} />
+                {/* Dial: rotates so N tracks true north when we have a heading */}
+                <svg viewBox="0 0 100 100" className="absolute inset-0" aria-hidden="true"
+                  style={{ transform: `rotate(${-(heading ?? 0)}deg)`, transition: 'transform 120ms linear' }}>
+                  <circle cx="50" cy="50" r="47" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.18)" strokeWidth="0.8" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="0.4" />
+                  {Array.from({ length: 36 }).map((_, i) => {
+                    const a = (i * 10 * Math.PI) / 180
+                    const major = i % 9 === 0
+                    const r1 = major ? 38 : 42
+                    return <line key={i} x1={50 + r1 * Math.sin(a)} y1={50 - r1 * Math.cos(a)} x2={50 + 46 * Math.sin(a)} y2={50 - 46 * Math.cos(a)}
+                      stroke={major ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.2)'} strokeWidth={major ? 1 : 0.4} />
+                  })}
+                  <text x="50" y="12" textAnchor="middle" fontSize="7" fontWeight="800" fill="#E24B4A" fontFamily="system-ui">N</text>
+                  <text x="90" y="52.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,.55)" fontFamily="system-ui">E</text>
+                  <text x="50" y="94" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,.55)" fontFamily="system-ui">S</text>
+                  <text x="10" y="52.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,.55)" fontFamily="system-ui">W</text>
+                </svg>
+                {/* Needle: points at the target relative to the user's facing */}
+                {relative != null && (
+                  <svg viewBox="0 0 100 100" className="absolute inset-0" aria-hidden="true"
+                    style={{ transform: `rotate(${relative}deg)`, transition: 'transform 160ms ease-out' }}>
+                    <polygon points="50,14 55,52 50,58 45,52" fill="#E24B4A" />
+                    <polygon points="50,86 55,48 50,42 45,48" fill="rgba(255,255,255,.85)" />
+                  </svg>
+                )}
+                {/* Hub */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-lg" />
+                {/* Target category hint, no name until revealed */}
+                {surpriseTarget && !surpriseRevealed && (
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[13px] pointer-events-none">
+                    {CATEGORY_EMOJI[surpriseTarget.guide.category] || '📍'}
+                  </div>
+                )}
+              </div>
+
+              {/* Readouts */}
+              <div className="flex flex-col items-center gap-1.5 text-center">
+                {distLabel ? (
+                  <div className="text-[26px] font-bold tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>{distLabel}</div>
+                ) : (
+                  <div className="text-[13px] text-white/50">{surpriseTarget ? 'Distance unknown — enable location' : '—'}</div>
+                )}
+                {turn != null && heading != null ? (
+                  <div className="text-[12px] text-white/70">
+                    Turn {Math.abs(Math.round(turn))}° {turn >= 0 ? 'right' : 'left'}
+                  </div>
+                ) : bearing != null ? (
+                  <div className="text-[12px] text-white/70">Head {compassPoint(bearing)} ({Math.round(bearing)}°)</div>
+                ) : null}
+                {headingState !== 'granted' && headingState !== 'unsupported' && (
+                  <button onClick={requestHeading}
+                    className="mt-1 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white text-[11px] font-bold cursor-pointer">
+                    Enable compass
+                  </button>
+                )}
+                {headingState === 'unsupported' && (
+                  <div className="text-[10px] text-white/40">No compass sensor — showing true north</div>
+                )}
+              </div>
+
+              {/* Reveal / actions */}
+              {!surpriseRevealed ? (
+                <button onClick={() => setSurpriseRevealed(true)} disabled={!surpriseTarget}
+                  className="px-6 py-3 rounded-full bg-[#1D9E75] text-white text-[13px] font-bold border-none cursor-pointer disabled:opacity-40 shadow-lg">
+                  Reveal guide
+                </button>
+              ) : surpriseTarget ? (
+                <div className="w-full max-w-[300px] rounded-2xl bg-white/[.07] border border-white/12 p-4 backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+                      style={{ background: `${targetColor}26`, color: targetColor }}>
+                      {CATEGORY_EMOJI[surpriseTarget.guide.category] || '📍'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-bold leading-tight line-clamp-2" style={{ fontFamily: 'var(--font-display)' }}>{surpriseTarget.guide.title}</div>
+                      <div className="text-[11px] text-white/60 truncate">
+                        {surpriseTarget.guide.city} · {surpriseTarget.guide.duration || '?'}
+                        {Number(surpriseTarget.guide.rating) > 0 && ` · ${Number(surpriseTarget.guide.rating).toFixed(1)}★`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => { const id = surpriseTarget.guide.id; closeSurprise(); navigate(`/guide/${id}`) }}
+                      className="flex-1 py-2.5 rounded-xl bg-[#1D9E75] text-white text-[12px] font-bold border-none cursor-pointer">
+                      Open guide →
+                    </button>
+                    <button onClick={rollSurprise}
+                      className="px-4 py-2.5 rounded-xl bg-white/10 text-white text-[12px] font-bold border-none cursor-pointer">
+                      New
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

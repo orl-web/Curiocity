@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { users } from '../services/api'
 import SEO from '../components/SEO'
 import { GuideSkeletonList } from '../components/Skeleton'
+import { classifyApiError } from '../utils/apiError'
 import type { Guide } from '../types'
 
 export default function FollowingPage() {
@@ -21,9 +22,9 @@ export default function FollowingPage() {
     try {
       const res = await users.meFeed()
       setGuides(res.data?.guides || [])
-    } catch {
+    } catch (err) {
       setGuides([])
-      setError('Failed to load feed. Check your connection and try again.')
+      setError(classifyApiError(err).message)
     } finally {
       setIsLoading(false)
     }

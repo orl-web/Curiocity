@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import LeafletMap from '../components/LeafletMap'
 import { exportGpx, exportKml, exportJson } from '../utils/gpsExporters'
 import { saveGuideOffline, isGuideOffline, deleteOfflineGuide, getGuideOffline } from '../utils/offlineStorage'
+import { classifyApiError } from '../utils/apiError'
 
 export default function GuidePage() {
   const { id } = useParams<{ id: string }>()
@@ -181,7 +182,7 @@ export default function GuidePage() {
           return
         }
       } catch {}
-      setError('Failed to load guide. Check your connection and try again.')
+      setError(classifyApiError(err).message)
     } finally {
       setIsLoading(false)
     }
@@ -259,8 +260,9 @@ export default function GuidePage() {
         image={`${window.location.origin}/api/guides/${guide?.id}/og-image`}
         url={`https://curiocity.app/guide/${guide?.id}`}
       />
-      {/* Header */}
-      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-2.5 shrink-0">
+      {/* Header — z-[80] so the ⋯ menu (z-70) and toasts clear the map below,
+          which is now contained by isolation:isolate on its own container. */}
+      <div className="relative z-[80] bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-2.5 shrink-0">
         <button onClick={handleBack} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[var(--bg-primary)]">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M11 4L6 9l5 5"/>
@@ -306,10 +308,10 @@ export default function GuidePage() {
         </div>
       </div>
       {showCopiedToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a18] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-50">Copied!</div>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a18] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-[90]">Copied!</div>
       )}
       {actionError && (
-        <div role="alert" className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#E24B4A] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-50">{actionError}</div>
+        <div role="alert" className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#E24B4A] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-[90]">{actionError}</div>
       )}
 
       {/* Map — collapses away as the content scrolls past it */}

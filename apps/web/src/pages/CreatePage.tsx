@@ -1,14 +1,17 @@
-import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { guides, ai } from '../services/api'
 import { parseGpsFile } from '../utils/gpsParsers'
 import { parseDescriptionFile } from '../utils/fileParser'
+import { useAuth } from '../hooks/useAuth'
+import { saveGuestDraft, getLatestGuestDraft } from '../utils/guestDrafts'
 
 const categories = ['Food', 'Architecture', 'History', 'Art', 'Nature', 'Characters']
 const accessModels = ['free', 'paid', 'ad'] as const
 
 export default function CreatePage() {
   const navigate = useNavigate()
+  const { isGuest } = useAuth()
   const [title, setTitle] = useState('')
   const [city, setCity] = useState('')
   const [category, setCategory] = useState('')
@@ -35,6 +38,27 @@ export default function CreatePage() {
   const [gpsImportCount, setGpsImportCount] = useState(0)
   const gpsInputRef = useRef<HTMLInputElement>(null)
   const descInputRef = useRef<HTMLInputElement>(null)
+  // Signed-out visitors do not publish to the server; their work is stored on
+  // the device and uploaded by useAuth once they create an account.
+  const [draftSaved, setDraftSaved] = useState(false)
+
+  useEffect(() => {
+    if (!isGuest) return
+    let cancelled = false
+    getLatestGuestDraft().then((draft) => {
+      if (!draft || cancelled) return
+      setTitle(draft.title || '')
+      setCity(draft.city || '')
+      setCategory(draft.category ? draft.category.charAt(0).toUpperCase() + draft.category.slice(1) : '')
+      setDescription(draft.description || '')
+      setDuration(draft.duration || '')
+      setDistance(draft.distance || '')
+      setAccessModel((draft.priceModel as 'free' | 'paid' | 'ad') || 'free')
+      setTimeSlots(draft.timeSlots || [])
+      setStops((draft.stops || []).map((s) => ({ name: s.name, description: s.description || '', latitude: s.latitude ?? undefined, longitude: s.longitude ?? undefined })))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [isGuest])
 
   const addStop = () => {
     if (newStop.trim()) {
@@ -143,7 +167,7 @@ export default function CreatePage() {
       if (mealCost) { const v = parseFloat(mealCost); if (!isNaN(v)) costs.meals = v; }
       if (transportCost) { const v = parseFloat(transportCost); if (!isNaN(v)) costs.transport = v; }
 
-      await guides.create({
+      const payload = {
         title,
         city,
         category: category.toLowerCase(),
@@ -163,7 +187,15 @@ export default function CreatePage() {
           longitude: s.longitude,
         })),
         costs: Object.keys(costs).length > 0 ? costs : undefined,
-      } as any)
+      }
+
+      if (isGuest) {
+        await saveGuestDraft(payload)
+        setDraftSaved(true)
+        return
+      }
+
+      await guides.create(payload as never)
       navigate('/')
     } catch (err: any) {
       setPublishError(err?.response?.data?.error || 'Failed to publish guide. Please try again.')
@@ -184,7 +216,23 @@ export default function CreatePage() {
         <div className="flex-1 text-lg font-bold text-[var(--color-primary)]">new guide</div>
       </div>
 
-      {/* Form */}
+      {/* Signed-out confirmation: the draft lives on this device until an
+          account exists, at which point useAuth uploads it. */}
+      {draftSaved ? (
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-4 text-center min-h-0">
+          <span className="text-4xl" aria-hidden="true">📝</span>
+          <h2 className="text-lg font-bold" style={{ fontFamily: 'var(--font-display)' }}>Draft saved on this device</h2>
+          <p className="text-sm text-[var(--text-secondary)] max-w-[280px]">
+            Create a free account and your guide “{title}” will be published automatically.
+          </p>
+          <div className="flex flex-col gap-2 w-full max-w-[280px]">
+            <Link to="/register" className="py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-bold no-underline">Create account &amp; publish</Link>
+            <button onClick={() => setDraftSaved(false)} className="py-2.5 rounded-xl border text-sm font-bold bg-transparent cursor-pointer" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+              Keep editing
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-[15px] min-h-0">
         {/* Title */}
         <div className="flex flex-col gap-[5px]">
@@ -497,8 +545,10 @@ export default function CreatePage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Publish Button */}
+      {!draftSaved && (
       <div className="px-4 py-3 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] shrink-0">
         {importError && (
           <div role="alert" className="mb-2 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center">
@@ -517,9 +567,10 @@ export default function CreatePage() {
           <svg aria-hidden="true" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M2 7.5l4 4L13 3"/>
           </svg>
-          {isPublishing ? 'Publishing…' : 'Publish guide'}
+          {isPublishing ? 'Publishing…' : isGuest ? 'Save draft on device' : 'Publish guide'}
         </button>
       </div>
+      )}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { payments, users } from '../services/api'
 import SEO from '../components/SEO'
+import { classifyApiError } from '../utils/apiError'
 import type { Guide } from '../types'
 
 interface Earnings {
@@ -38,7 +39,7 @@ export default function AnalyticsPage() {
       setGuides(guidesRes.data.guides || [])
     } catch (err: any) {
       if (err?.code === 'ERR_CANCELED') return
-      setError('Failed to load analytics. Check your connection and try again.')
+      setError(classifyApiError(err).message)
     } finally {
       setIsLoading(false)
     }

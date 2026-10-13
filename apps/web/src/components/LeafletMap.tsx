@@ -134,7 +134,10 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
   }, [stops, activeStop])
 
   return (
-    <div className="relative" ref={rootRef} style={{ height }}>
+    // isolation:isolate contains Leaflet's internal panes (z-index 200–700).
+    // Without it those panes sit in the root stacking context and render above
+    // any header dropdown or toast that overlaps the map.
+    <div className="relative" ref={rootRef} style={{ height, isolation: 'isolate' }}>
       <div
         ref={mapRef}
         style={{ height: '100%', width: '100%' }}

@@ -26,8 +26,10 @@ export default function RegisterPage() {
     setError('')
     setIsLoading(true)
     try {
-      await register(formData)
-      navigate('/')
+      // register() also uploads any guide draft the visitor built while signed
+      // out; pass the count along so the Explore page can confirm it.
+      const { published } = await register(formData)
+      navigate(published > 0 ? `/?published=${published}` : '/')
     } catch (err: any) {
       setError(err.response?.data?.message || t('auth.registerFailed'))
     } finally {

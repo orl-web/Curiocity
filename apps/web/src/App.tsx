@@ -56,7 +56,9 @@ export default function App() {
               <Route path="/guide/:id" element={<GuidePage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/create" element={<ProtectedRoute><CreatePage /></ProtectedRoute>} />
+              {/* Not behind ProtectedRoute: signed-out visitors build a local
+                  draft that uploads when they create an account. */}
+              <Route path="/create" element={<CreatePage />} />
               <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
               <Route path="/feed" element={<ProtectedRoute><FollowingPage /></ProtectedRoute>} />
               <Route path="/map" element={<MapPage />} />
