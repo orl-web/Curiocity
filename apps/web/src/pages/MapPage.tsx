@@ -5,6 +5,8 @@ import { guides } from '../services/api'
 import { getAllOfflineGuides } from '../utils/offlineStorage'
 import { getAllImportedLocations } from '../utils/importedLocations'
 import { sanitizeHtml } from '../utils/sanitize'
+import { haversineKm, bearingDeg, normalizeDeg, compassPoint } from '../utils/geo'
+import { useDeviceHeading } from '../hooks/useDeviceHeading'
 import SEO from '../components/SEO'
 import type { Guide, GuideStop, TimeSlot } from '../types'
 import type { ImportedLocation } from '../utils/importedLocations'
@@ -109,32 +111,6 @@ function nearestStop(stops: ReturnType<typeof positionedStops>, lat: number | nu
   return best
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-// Initial bearing from point 1 to point 2, in degrees clockwise from true north.
-function bearingDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLng = toRad(lng2 - lng1)
-  const y = Math.sin(dLng) * Math.cos(toRad(lat2))
-  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng)
-  return (Math.atan2(y, x) * 180) / Math.PI
-}
-
-function normalizeDeg(deg: number): number {
-  return ((deg % 360) + 360) % 360
-}
-
-const COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
-function compassPoint(deg: number): string {
-  return COMPASS_POINTS[Math.round(normalizeDeg(deg) / 22.5) % 16]
-}
-
 export default function MapPage() {
   const navigate = useNavigate()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -183,8 +159,7 @@ export default function MapPage() {
   const [openDropdown, setOpenDropdown] = useState<'cat' | 'dur' | 'time' | 'dist' | null>(null)
   // Device compass heading in degrees clockwise from true north, null when we
   // do not have sensor access (desktop, or permission not granted on iOS).
-  const [deviceHeading, setDeviceHeading] = useState<number | null>(null)
-  const [headingState, setHeadingState] = useState<'unknown' | 'granted' | 'denied' | 'unsupported'>('unknown')
+  const { heading: deviceHeading, state: headingState, requestHeading } = useDeviceHeading(surpriseMode)
 
   useEffect(() => {
     if (!navigator.geolocation) { setGeoError('Geolocation not available — showing all guides'); return }
@@ -354,37 +329,6 @@ export default function MapPage() {
     setSurpriseTarget(null)
   }
 
-  // Device compass. iOS needs an explicit permission prompt from a tap, so the
-  // overlay shows an "Enable compass" button that calls requestHeading().
-  const requestHeading = async () => {
-    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<'granted' | 'denied'> } | undefined
-    if (!DOE) { setHeadingState('unsupported'); return }
-    if (typeof DOE.requestPermission === 'function') {
-      try {
-        const result = await DOE.requestPermission()
-        setHeadingState(result === 'granted' ? 'granted' : 'denied')
-      } catch {
-        setHeadingState('denied')
-      }
-    } else {
-      setHeadingState('granted')
-    }
-  }
-
-  useEffect(() => {
-    if (!surpriseMode || headingState !== 'granted') return
-    const onOrientation = (e: DeviceOrientationEvent) => {
-      // alpha is the compass heading in degrees; webkitCompassHeading is the
-      // iOS Safari equivalent measured the same way.
-      const webkit = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
-      const alpha = typeof webkit === 'number' ? webkit : e.alpha
-      if (typeof alpha === 'number') setDeviceHeading(normalizeDeg(alpha))
-    }
-    const absolute = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'
-    window.addEventListener(absolute, onOrientation as EventListener)
-    return () => window.removeEventListener(absolute, onOrientation as EventListener)
-  }, [surpriseMode, headingState])
-
   useEffect(() => {
     const map = mapInstance.current
     const base = baseLayerRef.current
@@ -400,6 +344,18 @@ export default function MapPage() {
       if (!savedGuides.find((s) => s.id === g.id)) all.push({ guide: g, color: ROUTE_COLORS[i % ROUTE_COLORS.length], saved: false })
     })
 
+    // Pin size tracks the Bayesian rating so proven guides stand out. Scores
+    // are scaled across what is currently drawn (22–40px); an even spread
+    // falls back to a neutral 26px so nothing looks important by accident.
+    const scores = all.map((e) => Number(e.guide.bayesianRating ?? e.guide.rating) || 0)
+    const minScore = scores.length ? Math.min(...scores) : 0
+    const maxScore = scores.length ? Math.max(...scores) : 0
+    const pinSizeFor = (g: Guide): number => {
+      const s = Number(g.bayesianRating ?? g.rating) || 0
+      if (maxScore <= minScore) return 26
+      return Math.round(22 + ((s - minScore) / (maxScore - minScore)) * 18)
+    }
+
     // One pin per guide. Drawing every stop of every guide produced 36 markers
     // for 9 guides, which made the map unreadable. The full route only appears
     // once a guide is selected (see the effect below).
@@ -410,7 +366,7 @@ export default function MapPage() {
       if (stops.length === 0) {
         const clat = Number(guide.mapCenterLat), clng = Number(guide.mapCenterLng)
         if (!isNaN(clat) && !isNaN(clng) && (clat !== 0 || clng !== 0)) {
-          L.marker([clat, clng], { icon: categoryIcon(guide.category, cc) })
+          L.marker([clat, clng], { icon: categoryIcon(guide.category, cc, pinSizeFor(guide)) })
             .addTo(base).on('click', () => handleGuideClick(guide, 0))
         }
         return
@@ -419,7 +375,7 @@ export default function MapPage() {
       // Anchor on whichever stop is closest to the user, falling back to the
       // first stop so guides still show up before geolocation resolves.
       const anchor = nearestStop(stops, userLat, userLng)
-      L.marker([Number(anchor.stop.latitude), Number(anchor.stop.longitude)], { icon: categoryIcon(guide.category, cc) })
+      L.marker([Number(anchor.stop.latitude), Number(anchor.stop.longitude)], { icon: categoryIcon(guide.category, cc, pinSizeFor(guide)) })
         .addTo(base).on('click', () => handleGuideClick(guide, anchor.index))
     })
 

@@ -8,6 +8,8 @@ import LeafletMap from '../components/LeafletMap'
 import { exportGpx, exportKml, exportJson } from '../utils/gpsExporters'
 import { saveGuideOffline, isGuideOffline, deleteOfflineGuide, getGuideOffline } from '../utils/offlineStorage'
 import { classifyApiError } from '../utils/apiError'
+import { haversineKm, bearingDeg, normalizeDeg, compassPoint } from '../utils/geo'
+import { useDeviceHeading } from '../hooks/useDeviceHeading'
 
 export default function GuidePage() {
   const { id } = useParams<{ id: string }>()
@@ -39,6 +41,51 @@ export default function GuidePage() {
   const [isOffline, setIsOffline] = useState(false)
   const [isSavingOffline, setIsSavingOffline] = useState(false)
   const [isPurchased, setIsPurchased] = useState(false)
+
+  // Walk mode: a full-screen compass that walks the reader through this
+  // guide's stops in order, advancing as they arrive.
+  const [walkActive, setWalkActive] = useState(false)
+  const [walkIdx, setWalkIdx] = useState(0)
+  const [walkPos, setWalkPos] = useState<{ lat: number; lng: number } | null>(null)
+  const walkWatchRef = useRef<number | null>(null)
+  const { heading: walkHeading, state: headingState, requestHeading } = useDeviceHeading(walkActive)
+
+  // Stops that can actually be walked, keeping original indices for scroll sync.
+  const walkStops = (guide?.stops || [])
+    .map((stop, index) => ({ stop, index }))
+    .filter(({ stop }) => stop.latitude != null && stop.longitude != null && !isNaN(Number(stop.latitude)) && !isNaN(Number(stop.longitude)))
+
+  const startWalk = () => {
+    setWalkActive(true)
+    setWalkIdx(0)
+    // Lock page scroll behind the overlay.
+    document.body.style.overflow = 'hidden'
+    if ('geolocation' in navigator) {
+      walkWatchRef.current = navigator.geolocation.watchPosition(
+        (pos) => setWalkPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => setWalkPos(null),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+      )
+    }
+  }
+
+  const stopWalk = () => {
+    setWalkActive(false)
+    document.body.style.overflow = ''
+    if (walkWatchRef.current != null) {
+      navigator.geolocation.clearWatch(walkWatchRef.current)
+      walkWatchRef.current = null
+    }
+  }
+
+  // Auto-advance when the reader arrives at the current stop (within 60m).
+  useEffect(() => {
+    if (!walkActive || !walkPos || walkStops.length === 0) return
+    const target = walkStops[Math.min(walkIdx, walkStops.length - 1)]
+    if (!target) return
+    const km = haversineKm(walkPos.lat, walkPos.lng, Number(target.stop.latitude), Number(target.stop.longitude))
+    if (km <= 0.06 && walkIdx < walkStops.length - 1) setWalkIdx((i) => i + 1)
+  }, [walkActive, walkPos, walkIdx, walkStops])
 
   // The map collapses as soon as the reader scrolls past it, so the stops and
   // reviews get the full screen height. Height is written straight to the DOM
@@ -285,6 +332,9 @@ export default function GuidePage() {
               <div role="menu" className="absolute right-0 top-full mt-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-lg z-[70] overflow-hidden min-w-[190px]">
                 <button role="menuitem" onClick={() => { handleShare(); setShowActionsMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 border-b border-[var(--border-color)] transition-colors">
                   <span className="text-base">🔗</span> Share
+                </button>
+                <button role="menuitem" onClick={() => { startWalk(); setShowActionsMenu(false) }} disabled={walkStops.length === 0} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 border-b border-[var(--border-color)] transition-colors disabled:opacity-50">
+                  <span className="text-base">🚶</span> {walkStops.length === 0 ? 'Walk (no located stops)' : 'Walk route'}
                 </button>
                 <button role="menuitem" onClick={() => { handleSave(); setShowActionsMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 border-b border-[var(--border-color)] transition-colors">
                   <span className="text-base">{isSaved ? '★' : '☆'}</span> {isSaved ? 'Saved — tap to unsave' : 'Save guide'}
@@ -685,6 +735,126 @@ export default function GuidePage() {
           </div>
         )}
       </div>
+
+      {/* Walk mode — dark full-screen compass through this guide's stops */}
+      {walkActive && (() => {
+        const total = walkStops.length
+        const cur = walkStops[Math.min(walkIdx, Math.max(total - 1, 0))]
+        const curLat = cur ? Number(cur.stop.latitude) : null
+        const curLng = cur ? Number(cur.stop.longitude) : null
+        const hasTarget = curLat != null && curLng != null && !isNaN(curLat) && !isNaN(curLng)
+        const bearing = hasTarget && walkPos ? bearingDeg(walkPos.lat, walkPos.lng, curLat!, curLng!) : null
+        const distKm = hasTarget && walkPos ? haversineKm(walkPos.lat, walkPos.lng, curLat!, curLng!) : null
+        const relative = bearing != null ? normalizeDeg(bearing - (walkHeading ?? 0)) : null
+        const turn = relative != null ? (relative > 180 ? relative - 360 : relative) : null
+        const distLabel = distKm == null ? null : distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`
+        const finished = total > 0 && walkIdx >= total - 1 && distKm != null && distKm <= 0.06
+        const accent = '#1D9E75'
+
+        return (
+          <div className="fixed inset-0 z-[1300] flex flex-col text-white"
+            style={{
+              background: 'radial-gradient(120% 90% at 50% 30%, #1c1a17 0%, #0c0b0a 62%, #050504 100%)',
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0">
+              <button onClick={stopWalk} aria-label="Exit walk mode"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-[15px] cursor-pointer border-none text-white">✕</button>
+              <div className="text-center min-w-0 px-2">
+                <div className="text-[13px] font-bold truncate" style={{ fontFamily: 'var(--font-display)' }}>{guide.title}</div>
+                <div className="text-[10px] text-white/50">Walk mode{total > 0 ? ` · Stop ${Math.min(walkIdx + 1, total)} of ${total}` : ''}</div>
+              </div>
+              <button onClick={() => setWalkIdx((i) => Math.min(Math.max(total - 1, 0), i + 1))} aria-label="Skip to next stop" disabled={total <= 1}
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-[15px] cursor-pointer border-none text-white disabled:opacity-30">↻</button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-5 min-h-0 px-6">
+              {!walkPos && (
+                <div className="text-[12px] text-white/60 text-center max-w-[240px]">
+                  Turn on location to see which way to walk.
+                </div>
+              )}
+              {total === 0 ? (
+                <div className="text-[13px] text-white/70 text-center max-w-[260px]">This guide has no stops with coordinates yet.</div>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <div className="text-[17px] font-bold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>{cur.stop.name}</div>
+                    {finished && <div className="text-[12px] text-[#7ED9B6] mt-1">🎉 You made it — last stop reached</div>}
+                  </div>
+
+                  <div className="relative shrink-0" style={{ width: 228, height: 228 }}>
+                    <div className="absolute inset-0 rounded-full" style={{ boxShadow: `0 0 60px ${accent}33, inset 0 0 40px rgba(0,0,0,.5)` }} />
+                    <svg viewBox="0 0 100 100" className="absolute inset-0" aria-hidden="true"
+                      style={{ transform: `rotate(${-(walkHeading ?? 0)}deg)`, transition: 'transform 120ms linear' }}>
+                      <circle cx="50" cy="50" r="47" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.18)" strokeWidth="0.8" />
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="0.4" />
+                      {Array.from({ length: 36 }).map((_, i) => {
+                        const a = (i * 10 * Math.PI) / 180
+                        const major = i % 9 === 0
+                        const r1 = major ? 38 : 42
+                        return <line key={i} x1={50 + r1 * Math.sin(a)} y1={50 - r1 * Math.cos(a)} x2={50 + 46 * Math.sin(a)} y2={50 - 46 * Math.cos(a)}
+                          stroke={major ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.2)'} strokeWidth={major ? 1 : 0.4} />
+                      })}
+                      <text x="50" y="12" textAnchor="middle" fontSize="7" fontWeight="800" fill="#E24B4A" fontFamily="system-ui">N</text>
+                      <text x="90" y="52.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,.55)" fontFamily="system-ui">E</text>
+                      <text x="50" y="94" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,.55)" fontFamily="system-ui">S</text>
+                      <text x="10" y="52.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,.55)" fontFamily="system-ui">W</text>
+                    </svg>
+                    {relative != null && (
+                      <svg viewBox="0 0 100 100" className="absolute inset-0" aria-hidden="true"
+                        style={{ transform: `rotate(${relative}deg)`, transition: 'transform 160ms ease-out' }}>
+                        <polygon points="50,14 55,52 50,58 45,52" fill="#E24B4A" />
+                        <polygon points="50,86 55,48 50,42 45,48" fill="rgba(255,255,255,.85)" />
+                      </svg>
+                    )}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-lg" />
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[13px] pointer-events-none font-bold tabular-nums">{Math.min(walkIdx + 1, total)}</div>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1.5 text-center">
+                    {distLabel ? (
+                      <div className="text-[26px] font-bold tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>{distLabel}</div>
+                    ) : (
+                      <div className="text-[13px] text-white/50">{walkPos ? 'Distance unknown' : 'Enable location for distance'}</div>
+                    )}
+                    {turn != null && walkHeading != null ? (
+                      <div className="text-[12px] text-white/70">Turn {Math.abs(Math.round(turn))}° {turn >= 0 ? 'right' : 'left'}</div>
+                    ) : bearing != null ? (
+                      <div className="text-[12px] text-white/70">Head {compassPoint(bearing)} ({Math.round(bearing)}°)</div>
+                    ) : null}
+                    {headingState !== 'granted' && headingState !== 'unsupported' && (
+                      <button onClick={requestHeading}
+                        className="mt-1 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white text-[11px] font-bold cursor-pointer">
+                        Enable compass
+                      </button>
+                    )}
+                    {headingState === 'unsupported' && (
+                      <div className="text-[10px] text-white/40">No compass sensor — showing true north</div>
+                    )}
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex gap-2 items-center">
+                    <button onClick={() => setWalkIdx((i) => Math.max(0, i - 1))} disabled={walkIdx === 0}
+                      className="px-4 py-2.5 rounded-xl bg-white/10 text-white text-[12px] font-bold border-none cursor-pointer disabled:opacity-30">← Prev</button>
+                    {hasTarget && (
+                      <a href={`https://www.google.com/maps/dir/?api=1&destination=${curLat},${curLng}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="px-4 py-2.5 rounded-xl bg-white/10 text-white text-[12px] font-bold no-underline">Open in Maps</a>
+                    )}
+                    <button onClick={() => setWalkIdx((i) => Math.min(total - 1, i + 1))} disabled={walkIdx >= total - 1}
+                      className="px-4 py-2.5 rounded-xl bg-[#1D9E75] text-white text-[12px] font-bold border-none cursor-pointer disabled:opacity-30">Next →</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

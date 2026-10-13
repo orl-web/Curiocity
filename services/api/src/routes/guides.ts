@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
-import { guides, guideStops, guideCosts, guideNearby, guideResources, guideDrafts, guideVersions, userSavedGuides, users } from '../db/schema';
+import { guides, guideStops, guideCosts, guideNearby, guideResources, guideDrafts, guideVersions, userSavedGuides, users, reviews } from '../db/schema';
 import { eq, and, desc, asc, like, or, inArray, sql, count } from 'drizzle-orm';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { validateBody, validateQuery, validateParams } from '../middleware/validate';
@@ -118,6 +118,20 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   const guideIds = results.map((g: any) => g.id);
   const stopsCount = guideIds.length > 0 ? await db.select({ guideId: guideStops.guideId, count: sql<number>`count(*)` }).from(guideStops).where(inArray(guideStops.guideId, guideIds)).groupBy(guideStops.guideId) : [];
   const stopsMap = new Map(stopsCount.map((s: any) => [s.guideId, s.count]));
+  const reviewCounts = guideIds.length > 0 ? await db.select({ guideId: reviews.guideId, count: sql<number>`count(*)` }).from(reviews).where(inArray(reviews.guideId, guideIds)).groupBy(reviews.guideId) : [];
+  const reviewMap = new Map(reviewCounts.map((r: any) => [r.guideId, Number(r.count) || 0]));
+
+  // Bayesian shrinkage for pin sizing and sorting: guides.rating is an
+  // unweighted average that defaults to 5.0, so a single glowing review (or
+  // none at all) looks like the best guide in the city. Score each guide as
+  // (n·avg + C·global)/(n + C) — with 0 reviews it falls back to the global
+  // mean instead of a perfect 5.0, and many reviews let the real average show.
+  const BAYES_C = 5;
+  let globalAvg = 4.5;
+  if (guideIds.length > 0) {
+    const agg = await db.select({ avg: sql<string>`avg(rating)` }).from(guides).where(eq(guides.isPublished, true));
+    if (agg[0]?.avg != null) globalAvg = Number(agg[0].avg);
+  }
 
   let stopsByGuide = new Map<string, any[]>();
   if (guideIds.length > 0) {
@@ -131,7 +145,12 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   let savedSet = new Set<string>();
   if (userId && guideIds.length > 0) { const saved = await db.select({ guideId: userSavedGuides.guideId }).from(userSavedGuides).where(and(inArray(userSavedGuides.guideId, guideIds), eq(userSavedGuides.userId, userId))); savedSet = new Set(saved.map((s: any) => s.guideId)); }
 
-  const guidesWithMeta = results.map((g: any) => ({ ...g, stopsCount: stopsMap.get(g.id) || 0, isSaved: savedSet.has(g.id), stops: stopsByGuide.get(g.id) || [] }));
+  const guidesWithMeta = results.map((g: any) => {
+    const n = reviewMap.get(g.id) || 0;
+    const m = Number(g.rating) || globalAvg;
+    const bayesianRating = Math.round(((n * m + BAYES_C * globalAvg) / (n + BAYES_C)) * 10) / 10;
+    return { ...g, reviewCount: n, bayesianRating, stopsCount: stopsMap.get(g.id) || 0, isSaved: savedSet.has(g.id), stops: stopsByGuide.get(g.id) || [] };
+  });
   res.json({ guides: guidesWithMeta, total, limit, offset });
 });
 

@@ -37,6 +37,8 @@ export interface Guide {
   distance?: string
   priceModel: 'free' | 'paid' | 'ad'
   rating: number
+  reviewCount?: number
+  bayesianRating?: number
   isPublished: boolean
   createdAt: string
   updatedAt?: string
