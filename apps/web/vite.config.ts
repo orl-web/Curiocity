@@ -47,6 +47,23 @@ export default defineConfig({
     port: 3002,
     strictPort: true,
     host: true,
+    allowedHosts: ['.trycloudflare.com'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
+  // `vite preview` serves the production build, which is the only way to get a
+  // service worker (devOptions is disabled). It does not inherit server.proxy,
+  // so the /api bridge has to be repeated here for the Cloudflare tunnel setup
+  // described in docs/temporary_mods.md.
+  preview: {
+    port: 4173,
+    strictPort: true,
+    host: true,
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
