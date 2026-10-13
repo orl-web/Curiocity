@@ -11,23 +11,23 @@ export default function TermsPage() {
       />
       <nav className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/5">
         <Link to="/" className="text-lg font-bold text-[var(--color-primary)] no-underline">
-          Curio<span className="text-[#F27732] dark:text-[#f5f5f3]">City</span>
+          Curio<span className="text-[#F27732] dark:text-[var(--text-primary)]">City</span>
         </Link>
-        <Link to="/" className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] no-underline hover:text-[var(--color-primary)]">Back to home</Link>
+        <Link to="/" className="text-sm text-[var(--text-secondary)] no-underline hover:text-[var(--color-primary)]">Back to home</Link>
       </nav>
 
       <main className="max-w-2xl mx-auto px-6 py-10">
-        <h1 className="text-3xl font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">Terms of Service</h1>
-        <p className="text-sm text-[#b4b2a9] dark:text-[#706f6a] mb-8">Last updated: October 2026</p>
+        <h1 className="text-3xl font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">Terms of Service</h1>
+        <p className="text-sm text-[var(--text-muted)] mb-8">Last updated: October 2026</p>
 
-        <div className="space-y-6 text-sm text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed">
+        <div className="space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed">
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">1. The service</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">1. The service</h2>
             <p>CurioCity is a platform for creating, sharing, and following curated walking guides. By creating an account you agree to these terms.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">2. Your account</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">2. Your account</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>You must provide accurate information and keep your password secure.</li>
               <li>You are responsible for activity under your account.</li>
@@ -36,17 +36,17 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">3. Content ownership</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">3. Content ownership</h2>
             <p>Creators keep full ownership of the guides, text, photos, and audio they upload. By publishing, you grant CurioCity a non-exclusive license to host, display, and distribute that content within the app (including offline copies on users' devices). We will never relicense your content to third parties.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">4. Acceptable use</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">4. Acceptable use</h2>
             <p>You may not publish content that is illegal, infringing, hateful, or dangerous (e.g. guides that direct people into unsafe areas knowingly). We may remove content or suspend accounts that break these rules.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">5. Payments & refunds</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">5. Payments & refunds</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>Paid guides are purchased once and remain accessible on your account.</li>
               <li>Payments are processed by Stripe; CurioCity never stores card details.</li>
@@ -56,23 +56,23 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">6. Safety</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">6. Safety</h2>
             <p>Walking guides are informational. Follow local laws, watch traffic, and use your judgement. CurioCity is not responsible for incidents during walks.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">7. Liability</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">7. Liability</h2>
             <p>To the maximum extent permitted by law, CurioCity is not liable for indirect or consequential damages. Our total liability is limited to the amount you paid us in the last 12 months.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">8. Changes & contact</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">8. Changes & contact</h2>
             <p>We may update these terms; material changes will be announced by email. Questions: <a href="mailto:legal@curiocity.app" className="text-[var(--color-primary)] underline">legal@curiocity.app</a></p>
           </section>
         </div>
       </main>
 
-      <footer className="px-6 py-8 border-t border-black/5 text-center text-xs text-[#b4b2a9] dark:text-[#706f6a]">
+      <footer className="px-6 py-8 border-t border-black/5 text-center text-xs text-[var(--text-muted)]">
         CurioCity &copy; {new Date().getFullYear()} — <Link to="/privacy" className="underline">Privacy</Link>
       </footer>
     </div>

@@ -28,6 +28,7 @@ function makeIcon(index: number, active: boolean) {
 }
 
 export default function LeafletMap({ stops, activeStop = null, onStopClick, height = '260px' }: LeafletMapProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<L.Map | null>(null)
   const markersRef = useRef<L.Marker[]>([])
@@ -77,6 +78,18 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
     }
   }, [useOfflineTiles])
 
+  // Leaflet measures its container once at init. GuidePage collapses the map
+  // wrapper as the content scrolls, and any other height change (keyboard,
+  // orientation) would otherwise leave the tiles misaligned or greyed out.
+  useEffect(() => {
+    const root = rootRef.current
+    const map = mapInstance.current
+    if (!root || !map) return
+    const observer = new ResizeObserver(() => map.invalidateSize({ animate: false }))
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [useOfflineTiles])
+
   useEffect(() => {
     const map = mapInstance.current
     if (!map) return
@@ -121,10 +134,10 @@ export default function LeafletMap({ stops, activeStop = null, onStopClick, heig
   }, [stops, activeStop])
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef} style={{ height }}>
       <div
         ref={mapRef}
-        style={{ height, width: '100%' }}
+        style={{ height: '100%', width: '100%' }}
         role="img"
         aria-label="Map showing guide stops"
       />

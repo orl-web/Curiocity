@@ -50,8 +50,8 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-full">
       <SEO title="Creator Analytics" description="Track views, saves and earnings for your CurioCity guides" />
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 shrink-0">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[#f5f5f3]">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-2.5 shrink-0">
+        <button onClick={() => navigate(-1)} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[var(--bg-primary)]">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M11 4L6 9l5 5"/>
           </svg>
@@ -69,47 +69,47 @@ export default function AnalyticsPage() {
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
+            <p className="text-sm text-[var(--text-secondary)] text-center">{error}</p>
             <button onClick={loadAnalytics} aria-label="Retry loading analytics" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-4 text-center">
-              <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wide mb-1">Total Earnings</div>
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-4 text-center">
+              <div className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide mb-1">Total Earnings</div>
               <div className="text-3xl font-bold text-[var(--color-primary)]">€{earnings.totalEarnings.toFixed(2)}</div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-3">
-                <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wide mb-1">Pending</div>
+              <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-3">
+                <div className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide mb-1">Pending</div>
                 <div className="text-lg font-bold">€{earnings.pendingEarnings.toFixed(2)}</div>
               </div>
-              <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-3">
-                <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wide mb-1">Published</div>
+              <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-3">
+                <div className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide mb-1">Published</div>
                 <div className="text-lg font-bold">{publishedGuides.length}</div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg p-3">
-              <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wide mb-1">Total Saves</div>
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-3">
+              <div className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide mb-1">Total Saves</div>
               <div className="text-lg font-bold">{totalSaves}</div>
             </div>
 
-            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 border-b border-black/10 dark:border-white/9">
-                <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wide">Your Guides</div>
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg overflow-hidden">
+              <div className="px-3 py-2 border-b border-[var(--border-color)]">
+                <div className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wide">Your Guides</div>
               </div>
               {guides.length === 0 ? (
-                <div className="text-center py-8 text-[#5f5e5a] dark:text-[#a8a7a0] text-sm">No guides yet</div>
+                <div className="text-center py-8 text-[var(--text-secondary)] text-sm">No guides yet</div>
               ) : (
                 <div className="divide-y divide-black/5 dark:divide-white/5">
                   {guides.map((guide) => (
-                    <div key={guide.id} className="px-3 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-[#f5f5f3] dark:hover:bg-[#272725] transition-colors" onClick={() => navigate(`/guide/${guide.id}`)}>
+                    <div key={guide.id} className="px-3 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-[var(--bg-primary)] dark:hover:bg-[var(--bg-tertiary)] transition-colors" onClick={() => navigate(`/guide/${guide.id}`)}>
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-bold truncate">{guide.title}</div>
-                        <div className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] mt-[1px]">{guide.city}</div>
+                        <div className="text-[12px] text-[var(--text-secondary)] mt-[1px]">{guide.city}</div>
                       </div>
-                      <div className="flex items-center gap-3 text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] shrink-0">
+                      <div className="flex items-center gap-3 text-[12px] text-[var(--text-secondary)] shrink-0">
                         <span>{guide.stopsCount || 0} stops</span>
                         <span>{guide.savesCount || 0} saves</span>
                       </div>

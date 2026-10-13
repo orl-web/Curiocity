@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { guides, reviews, comments } from '../services/api'
 import SEO from '../components/SEO'
@@ -34,10 +34,33 @@ export default function GuidePage() {
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [showCopiedToast, setShowCopiedToast] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showActionsMenu, setShowActionsMenu] = useState(false)
   const [isOffline, setIsOffline] = useState(false)
   const [isSavingOffline, setIsSavingOffline] = useState(false)
   const [isPurchased, setIsPurchased] = useState(false)
+
+  // The map collapses as soon as the reader scrolls past it, so the stops and
+  // reviews get the full screen height. Height is written straight to the DOM
+  // instead of through state: doing it via React would re-render the whole page
+  // (reviews, comments, replies) on every scroll frame.
+  const MAP_MAX_HEIGHT = 260
+  const MAP_COLLAPSE_DISTANCE = 160
+  const mapWrapRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const collapseTickingRef = useRef(false)
+
+  const collapseMapOnScroll = useCallback(() => {
+    if (collapseTickingRef.current) return
+    collapseTickingRef.current = true
+    requestAnimationFrame(() => {
+      collapseTickingRef.current = false
+      const wrap = mapWrapRef.current
+      const scroller = contentRef.current
+      if (!wrap || !scroller) return
+      const progress = Math.min(scroller.scrollTop / MAP_COLLAPSE_DISTANCE, 1)
+      wrap.style.height = `${Math.round(MAP_MAX_HEIGHT * (1 - progress))}px`
+    })
+  }, [MAP_MAX_HEIGHT, MAP_COLLAPSE_DISTANCE])
 
   useEffect(() => {
     if (id) loadGuide(id)
@@ -213,7 +236,7 @@ export default function GuidePage() {
   if (!guide) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-[#5f5e5a] dark:text-[#a8a7a0]">{error || 'Guide not found'}</p>
+        <p className="text-[var(--text-secondary)]">{error || 'Guide not found'}</p>
         <button onClick={() => id && loadGuide(id)} className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
         <button onClick={() => navigate('/')} aria-label="Go back to home" className="text-[var(--color-primary)] font-bold text-sm border-none bg-transparent cursor-pointer">Go back</button>
       </div>
@@ -237,64 +260,50 @@ export default function GuidePage() {
         url={`https://curiocity.app/guide/${guide?.id}`}
       />
       {/* Header */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 shrink-0">
-        <button onClick={handleBack} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[#f5f5f3]">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-2.5 shrink-0">
+        <button onClick={handleBack} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[var(--bg-primary)]">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M11 4L6 9l5 5"/>
           </svg>
         </button>
-        <span className="flex-1 text-[15px] font-bold">{guide.title}</span>
-        <button onClick={handleShare} aria-label="Share guide" className="cursor-pointer p-1 active:scale-90 transition-transform">
-          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="15" cy="4" r="2.5"/><circle cx="5" cy="10" r="2.5"/><circle cx="15" cy="16" r="2.5"/>
-            <path d="M7.2 8.8l5.6-3.6M7.2 11.2l5.6 3.6"/>
-          </svg>
-        </button>
+        <span className="flex-1 text-[15px] font-bold line-clamp-2 leading-tight" style={{ fontFamily: 'var(--font-display)' }}>{guide.title}</span>
+        {/* All guide actions live behind one ⋯ button. Five separate icons
+            crowded the header and pushed the title into a single truncated line. */}
         <div className="relative">
-          <button onClick={() => setShowExportMenu(!showExportMenu)} aria-label="Export guide" className="cursor-pointer p-1 active:scale-90 transition-transform">
-            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M10 3v10M6 9l4 4 4-4M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2"/>
-            </svg>
-          </button>
-          {showExportMenu && (
+          <button
+            onClick={() => setShowActionsMenu(!showActionsMenu)}
+            aria-label="Guide actions"
+            aria-haspopup="menu"
+            aria-expanded={showActionsMenu}
+            className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[var(--text-secondary)] text-[15px] font-bold cursor-pointer shrink-0"
+          >⋯</button>
+          {showActionsMenu && (
             <>
-              <div className="fixed inset-0 z-[60]" onClick={() => setShowExportMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl shadow-lg z-[70] overflow-hidden min-w-[160px]">
-                <button onClick={() => { exportGpx(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 border-b border-black/5 dark:border-white/5 active:bg-[#E1F5EE] transition-colors">
-                  <span className="text-base">🗺</span> Export GPX
+              <div className="fixed inset-0 z-[60]" onClick={() => setShowActionsMenu(false)} />
+              <div role="menu" className="absolute right-0 top-full mt-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-lg z-[70] overflow-hidden min-w-[190px]">
+                <button role="menuitem" onClick={() => { handleShare(); setShowActionsMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 border-b border-[var(--border-color)] transition-colors">
+                  <span className="text-base">🔗</span> Share
                 </button>
-                <button onClick={() => { exportKml(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 border-b border-black/5 dark:border-white/5 active:bg-[#E1F5EE] transition-colors">
-                  <span className="text-base">📍</span> Export KML
+                <button role="menuitem" onClick={() => { handleSave(); setShowActionsMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 border-b border-[var(--border-color)] transition-colors">
+                  <span className="text-base">{isSaved ? '★' : '☆'}</span> {isSaved ? 'Saved — tap to unsave' : 'Save guide'}
                 </button>
-                <button onClick={() => { exportJson(guide); setShowExportMenu(false) }} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[#f5f5f3] dark:hover:bg-[#272725] flex items-center gap-2 active:bg-[#E1F5EE] transition-colors">
-                  <span className="text-base">📋</span> Export JSON
+                <button role="menuitem" onClick={() => { handleToggleOffline(); setShowActionsMenu(false) }} disabled={isSavingOffline} className="w-full px-4 py-2.5 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 border-b border-[var(--border-color)] transition-colors disabled:opacity-50">
+                  <span className="text-base">{isOffline ? '✓' : '⬇'}</span> {isSavingOffline ? 'Saving…' : isOffline ? 'Available offline' : 'Save for offline'}
+                </button>
+                <div className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] border-t border-[var(--border-color)]">Export route</div>
+                <button role="menuitem" onClick={() => { exportGpx(guide); setShowActionsMenu(false) }} className="w-full px-4 py-2 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 transition-colors">
+                  <span className="text-base">🗺</span> GPX
+                </button>
+                <button role="menuitem" onClick={() => { exportKml(guide); setShowActionsMenu(false) }} className="w-full px-4 py-2 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 transition-colors">
+                  <span className="text-base">📍</span> KML
+                </button>
+                <button role="menuitem" onClick={() => { exportJson(guide); setShowActionsMenu(false) }} className="w-full px-4 py-2 text-left text-[13px] font-bold hover:bg-[var(--bg-tertiary)] flex items-center gap-2 transition-colors">
+                  <span className="text-base">📋</span> JSON
                 </button>
               </div>
             </>
           )}
         </div>
-        <button
-          onClick={handleToggleOffline}
-          disabled={isSavingOffline}
-          aria-label={isOffline ? 'Remove from offline' : 'Save for offline'}
-          className="cursor-pointer p-1 active:scale-90 transition-transform"
-        >
-          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke={isOffline ? 'var(--color-primary)' : 'currentColor'} strokeWidth="1.5">
-            {isOffline ? (
-              <path d="M4 13l4 4L16 3" fill="none"/>
-            ) : (
-              <>
-                <path d="M10 3v10M6 9l4 4 4-4"/>
-                <path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2"/>
-              </>
-            )}
-          </svg>
-        </button>
-        <button onClick={handleSave} aria-label={isSaved ? 'Unsave guide' : 'Save guide'} className="cursor-pointer p-1 active:scale-90 transition-transform">
-          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M5 3h10a1 1 0 011 1v13l-6-3-6 3V4a1 1 0 011-1z" fill={isSaved ? 'var(--color-primary)' : 'none'}/>
-          </svg>
-        </button>
       </div>
       {showCopiedToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a18] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-50">Copied!</div>
@@ -303,11 +312,18 @@ export default function GuidePage() {
         <div role="alert" className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#E24B4A] text-white text-[13px] font-bold px-4 py-2 rounded-full shadow-lg z-50">{actionError}</div>
       )}
 
-      {/* Map */}
-      <div role="region" aria-label="Guide map" className="relative shrink-0">
+      {/* Map — collapses away as the content scrolls past it */}
+      <div
+        ref={mapWrapRef}
+        role="region"
+        aria-label="Guide map"
+        className="relative shrink-0 overflow-hidden"
+        style={{ height: MAP_MAX_HEIGHT, transition: 'height 200ms ease-out' }}
+      >
         <LeafletMap
           stops={guide.stops || []}
           activeStop={activeStop}
+          height="100%"
           onStopClick={(i) => {
             setActiveStop(i)
             const el = document.getElementById(`stop-${i}`)
@@ -317,11 +333,11 @@ export default function GuidePage() {
       </div>
 
       {/* Stop Navigation Bar */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-3.5 py-[9px] flex items-center gap-2.5 shrink-0 z-10">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-3.5 py-[9px] flex items-center gap-2.5 shrink-0 z-10">
         <div className="flex-1 min-w-0">
-          <div className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">
+          <div className="text-[12px] text-[var(--text-secondary)] truncate">
             {activeStop !== null && guide.stops?.[activeStop] ? (
-              <span><strong className="text-[#F27732] dark:text-[#f5f5f3]">{guide.stops[activeStop].name}</strong></span>
+              <span><strong className="text-[#F27732] dark:text-[var(--text-primary)]">{guide.stops[activeStop].name}</strong></span>
             ) : (
               'Select a stop to view details'
             )}
@@ -337,7 +353,7 @@ export default function GuidePage() {
               el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }}
             disabled={activeStop === null || activeStop === 0}
-            className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[var(--color-primary)] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[var(--bg-tertiary)] flex items-center justify-center cursor-pointer text-[13px] hover:border-[var(--color-primary)] disabled:opacity-30 disabled:cursor-not-allowed"
           >⏮</button>
           <button
             aria-label="Next stop"
@@ -348,7 +364,7 @@ export default function GuidePage() {
               el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }}
             disabled={activeStop === null || !guide.stops || activeStop >= guide.stops.length - 1}
-            className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[var(--color-primary)] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[var(--bg-tertiary)] flex items-center justify-center cursor-pointer text-[13px] hover:border-[var(--color-primary)] disabled:opacity-30 disabled:cursor-not-allowed"
           >⏭</button>
           {activeStop !== null && guide.stops?.[activeStop]?.latitude && guide.stops?.[activeStop]?.longitude && (
             <a
@@ -356,14 +372,18 @@ export default function GuidePage() {
               href={`https://www.google.com/maps/dir/?api=1&destination=${guide.stops[activeStop].latitude},${guide.stops[activeStop].longitude}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center cursor-pointer text-[13px] hover:border-[var(--color-primary)]"
+              className="w-8 h-8 rounded-full border border-black/20 dark:border-white/18 bg-[var(--bg-tertiary)] flex items-center justify-center cursor-pointer text-[13px] hover:border-[var(--color-primary)]"
             >🚶</a>
           )}
         </div>
       </div>
 
       {/* Content */}
-      <div className={`flex-1 overflow-y-auto min-h-0 ${(guide.priceModel !== 'free' && !isPurchased) ? 'relative' : ''}`}>
+      <div
+        ref={contentRef}
+        onScroll={collapseMapOnScroll}
+        className={`flex-1 overflow-y-auto min-h-0 ${(guide.priceModel !== 'free' && !isPurchased) ? 'relative' : ''}`}
+      >
         {(guide.priceModel !== 'free' && !isPurchased) && (
           <div className="absolute inset-0 z-20 pointer-events-none" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
             <div className="absolute inset-0 bg-white/40 dark:bg-black/40" />
@@ -379,7 +399,7 @@ export default function GuidePage() {
               </div>
               <div>
                 <div className="text-sm font-bold">{guide.user?.displayName || 'Creator'}</div>
-                <div className="text-xs text-[#5f5e5a] dark:text-[#a8a7a0]">{guide.city}</div>
+                <div className="text-xs text-[var(--text-secondary)]">{guide.city}</div>
               </div>
             </div>
             {(guide.timeSlots?.length || guide.validUntil || guide.recurrence) ? (
@@ -404,17 +424,17 @@ export default function GuidePage() {
           </div>
 
           {guide.description && (
-            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed">{guide.description}</p>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{guide.description}</p>
           )}
 
           {/* Costs */}
           {guide.costs && guide.costs.length > 0 && (
-            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden">
-              <div className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9 text-[12px] font-bold uppercase tracking-wider text-[#b4b2a9] dark:text-[#706f6a] flex justify-between items-center">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden">
+              <div className="px-3.5 py-2.5 border-b border-[var(--border-color)] text-[12px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex justify-between items-center">
                 <span>Estimated Costs</span>
               </div>
               {guide.costs.map((cost) => (
-                <div key={cost.id} className="px-3.5 py-[9px] flex items-start gap-2.5 border-b border-black/10 dark:border-white/9 last:border-b-0">
+                <div key={cost.id} className="px-3.5 py-[9px] flex items-start gap-2.5 border-b border-[var(--border-color)] last:border-b-0">
                   <span className="text-base flex-shrink-0 w-[22px] text-center">
                     {cost.type === 'tickets' ? '🎟' : cost.type === 'meals' ? '🍽' : '🚌'}
                   </span>
@@ -424,8 +444,8 @@ export default function GuidePage() {
                   <span className="text-sm font-bold shrink-0">€{(parseFloat(cost.price) || 0).toFixed(2)}</span>
                 </div>
               ))}
-              <div className="px-3.5 py-2.5 bg-[#f5f5f3] dark:bg-[#272725] flex justify-between items-center">
-                <span className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0]">Total</span>
+              <div className="px-3.5 py-2.5 bg-[var(--bg-tertiary)] flex justify-between items-center">
+                <span className="text-[13px] text-[var(--text-secondary)]">Total</span>
                 <span className="text-lg font-bold text-[var(--color-primary)]">
                   €{guide.costs.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0).toFixed(2)}
                 </span>
@@ -436,7 +456,7 @@ export default function GuidePage() {
           {/* Stops */}
           {guide.stops && guide.stops.length > 0 && (
             <div>
-              <div className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a] font-bold uppercase tracking-wider mb-2">Stops</div>
+              <div className="text-[11px] text-[var(--text-muted)] font-bold uppercase tracking-wider mb-2">Stops</div>
               {guide.stops.map((stop, index) => (
                 <StopCard
                   key={stop.id}
@@ -451,41 +471,41 @@ export default function GuidePage() {
 
           {/* Resources */}
           {guide.resources && guide.resources.length > 0 && (
-            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl p-3.5">
-              <div className="text-[12px] font-bold uppercase tracking-wider text-[#b4b2a9] dark:text-[#706f6a] mb-2.5">Resources</div>
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-3.5">
+              <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2.5">Resources</div>
               {guide.resources.map((res) => (
-                <a key={res.id} href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 py-[7px] border-b border-black/10 dark:border-white/9 last:border-b-0 no-underline">
-                  <div className="w-7 h-7 rounded-lg bg-[#f5f5f3] dark:bg-[#272725] flex items-center justify-center text-sm flex-shrink-0">
+                <a key={res.id} href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 py-[7px] border-b border-[var(--border-color)] last:border-b-0 no-underline">
+                  <div className="w-7 h-7 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center text-sm flex-shrink-0">
                     {res.icon || '🔗'}
                   </div>
                   <div className="flex-1">
-                    <div className="text-[13px] font-bold text-[#F27732] dark:text-[#f5f5f3]">{res.title}</div>
-                    <div className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a] truncate">{res.url}</div>
+                    <div className="text-[13px] font-bold text-[#F27732] dark:text-[var(--text-primary)]">{res.title}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">{res.url}</div>
                   </div>
-                  <span className="text-[#b4b2a9] dark:text-[#706f6a] text-xs">→</span>
+                  <span className="text-[var(--text-muted)] text-xs">→</span>
                 </a>
               ))}
             </div>
           )}
 
           {/* Reviews */}
-          <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden">
-            <div className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9 flex items-center justify-between">
-              <div className="text-[12px] font-bold uppercase tracking-wider text-[#b4b2a9] dark:text-[#706f6a]">Reviews</div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden">
+            <div className="px-3.5 py-2.5 border-b border-[var(--border-color)] flex items-center justify-between">
+              <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Reviews</div>
               {guideReviews.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-[#F27732] dark:text-[#f5f5f3]">{reviewAvg.toFixed(1)}</span>
+                  <span className="text-sm font-bold text-[#F27732] dark:text-[var(--text-primary)]">{reviewAvg.toFixed(1)}</span>
                   <span className="text-[var(--color-primary)] text-sm">★</span>
-                  <span className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a]">({guideReviews.length})</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">({guideReviews.length})</span>
                 </div>
               )}
             </div>
             {isAuthenticated && (
-              <div className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9">
+              <div className="px-3.5 py-2.5 border-b border-[var(--border-color)]">
                 {!showReviewForm ? (
                   <button
                     onClick={() => setShowReviewForm(true)}
-                    className="w-full text-left px-3 py-2 rounded-lg bg-[#f5f5f3] dark:bg-[#272725] text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] cursor-pointer border border-black/10 dark:border-white/9 hover:border-[var(--color-primary)] transition-colors"
+                    className="w-full text-left px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] text-[13px] text-[var(--text-secondary)] cursor-pointer border border-[var(--border-color)] hover:border-[var(--color-primary)] transition-colors"
                   >
                     Write a Review...
                   </button>
@@ -506,12 +526,12 @@ export default function GuidePage() {
                       value={reviewText}
                       onChange={(e) => setReviewText(e.target.value)}
                       placeholder="Share your experience (optional)"
-                      className="w-full px-3 py-2 rounded-lg border border-black/10 dark:border-white/9 bg-[#f5f5f3] dark:bg-[#272725] text-[13px] text-[#F27732] dark:text-[#f5f5f3] resize-none h-16 focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[#b4b2a9]"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] text-[13px] text-[#F27732] dark:text-[var(--text-primary)] resize-none h-16 focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[var(--text-muted)]"
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={() => { setShowReviewForm(false); setReviewText(''); setReviewRating(5) }}
-                        className="px-3 py-1.5 rounded-lg bg-[#f5f5f3] dark:bg-[#272725] text-[12px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10 dark:border-white/9 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[12px] font-bold text-[var(--text-secondary)] border border-[var(--border-color)] cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -529,35 +549,35 @@ export default function GuidePage() {
             )}
             {guideReviews.length > 0 ? (
               guideReviews.map((review) => (
-                <div key={review.id} className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9 last:border-b-0">
+                <div key={review.id} className="px-3.5 py-2.5 border-b border-[var(--border-color)] last:border-b-0">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-6 h-6 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                       {review.user?.displayName?.charAt(0) || '?'}
                     </div>
                     <span className="text-[13px] font-bold flex-1">{review.user?.displayName || 'Anonymous'}</span>
-                    <span className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a]">{new Date(review.createdAt).toLocaleDateString()}</span>
+                    <span className="text-[11px] text-[var(--text-muted)]">{new Date(review.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="text-[var(--color-primary)] text-sm mb-0.5">
                     {Array.from({ length: 5 }, (_, i) => <span key={i}>{i < review.rating ? '★' : '☆'}</span>)}
                   </div>
                   {review.comment || (review as any).text ? (
-                    <p className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed mt-0.5">{review.comment || (review as any).text}</p>
+                    <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed mt-0.5">{review.comment || (review as any).text}</p>
                   ) : null}
                 </div>
               ))
             ) : (
-              <div className="px-3.5 py-5 text-center text-[13px] text-[#b4b2a9] dark:text-[#706f6a]">No reviews yet. Be the first to review!</div>
+              <div className="px-3.5 py-5 text-center text-[13px] text-[var(--text-muted)]">No reviews yet. Be the first to review!</div>
             )}
           </div>
 
           {/* Comments */}
-          <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden">
-            <div className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9 flex items-center justify-between">
-              <div className="text-[12px] font-bold uppercase tracking-wider text-[#b4b2a9] dark:text-[#706f6a]">Comments</div>
-              <span className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a]">({guideComments.length})</span>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden">
+            <div className="px-3.5 py-2.5 border-b border-[var(--border-color)] flex items-center justify-between">
+              <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Comments</div>
+              <span className="text-[11px] text-[var(--text-muted)]">({guideComments.length})</span>
             </div>
             {isAuthenticated && (
-              <div className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9 flex gap-2">
+              <div className="px-3.5 py-2.5 border-b border-[var(--border-color)] flex gap-2">
                 <div className="w-7 h-7 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                   {currentUser?.displayName?.charAt(0) || '?'}
                 </div>
@@ -567,7 +587,7 @@ export default function GuidePage() {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && commentText.trim()) handleSubmitComment() }}
                   placeholder="Add a comment..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-[#f5f5f3] dark:bg-[#272725] text-[13px] text-[#F27732] dark:text-[#f5f5f3] border border-black/10 dark:border-white/9 focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[#b4b2a9]"
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[13px] text-[#F27732] dark:text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[var(--text-muted)]"
                 />
                 <button
                   onClick={() => handleSubmitComment()}
@@ -581,15 +601,15 @@ export default function GuidePage() {
             {guideComments.length > 0 ? (
               guideComments.map((comment) => (
                 <div key={comment.id}>
-                  <div className="px-3.5 py-2.5 border-b border-black/10 dark:border-white/9 last:border-b-0">
+                  <div className="px-3.5 py-2.5 border-b border-[var(--border-color)] last:border-b-0">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="w-6 h-6 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                         {comment.user?.displayName?.charAt(0) || '?'}
                       </div>
                       <span className="text-[13px] font-bold flex-1">{comment.user?.displayName || 'Anonymous'}</span>
-                      <span className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a]">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">{new Date(comment.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed pl-8">{comment.content || (comment as any).text}</p>
+                    <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed pl-8">{comment.content || (comment as any).text}</p>
                     {isAuthenticated && (
                       <button
                         onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText('') }}
@@ -600,26 +620,26 @@ export default function GuidePage() {
                     )}
                   </div>
                   {(guideReplies[comment.id] || []).map((reply) => (
-                    <div key={reply.id} className="px-3.5 py-2.5 pl-12 border-b border-black/10 dark:border-white/9 last:border-b-0">
+                    <div key={reply.id} className="px-3.5 py-2.5 pl-12 border-b border-[var(--border-color)] last:border-b-0">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-5 h-5 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
                           {reply.user?.displayName?.charAt(0) || '?'}
                         </div>
                         <span className="text-[12px] font-bold flex-1">{reply.user?.displayName || 'Anonymous'}</span>
-                        <span className="text-[10px] text-[#b4b2a9] dark:text-[#706f6a]">{new Date(reply.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{new Date(reply.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed pl-7">{reply.content || (reply as any).text}</p>
+                      <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed pl-7">{reply.content || (reply as any).text}</p>
                     </div>
                   ))}
                   {replyingTo === comment.id && (
-                    <div className="px-3.5 py-2.5 pl-12 border-b border-black/10 dark:border-white/9 flex gap-2">
+                    <div className="px-3.5 py-2.5 pl-12 border-b border-[var(--border-color)] flex gap-2">
                       <input
                         type="text"
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && replyText.trim()) handleSubmitComment(comment.id) }}
                         placeholder={`Reply to ${comment.user?.displayName || 'Anonymous'}...`}
-                        className="flex-1 px-3 py-1.5 rounded-lg bg-[#f5f5f3] dark:bg-[#272725] text-[12px] text-[#F27732] dark:text-[#f5f5f3] border border-black/10 dark:border-white/9 focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[#b4b2a9]"
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[12px] text-[#F27732] dark:text-[var(--text-primary)] border border-[var(--border-color)] focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[var(--text-muted)]"
                       />
                       <button
                         onClick={() => handleSubmitComment(comment.id)}
@@ -633,16 +653,16 @@ export default function GuidePage() {
                 </div>
               ))
             ) : (
-              <div className="px-3.5 py-5 text-center text-[13px] text-[#b4b2a9] dark:text-[#706f6a]">No comments yet. Start the conversation!</div>
+              <div className="px-3.5 py-5 text-center text-[13px] text-[var(--text-muted)]">No comments yet. Start the conversation!</div>
             )}
           </div>
         </div>
         {(guide.priceModel !== 'free' && !isPurchased) && (
           <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-auto">
-            <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-2xl shadow-2xl p-6 mx-6 text-center max-w-[300px]">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-6 mx-6 text-center max-w-[300px]">
               <div className="text-3xl mb-3">{guide.priceModel === 'paid' ? '🎟' : '📺'}</div>
               <h3 className="text-lg font-bold mb-2">{guide.priceModel === 'paid' ? 'Unlock this guide' : 'Watch an ad to unlock'}</h3>
-              <p className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] mb-4">
+              <p className="text-[13px] text-[var(--text-secondary)] mb-4">
                 {guide.priceModel === 'paid'
                   ? `Pay €0.99 to get full access to this guide and all its stops.`
                   : `Watch a short ad to access this guide for free.`}
@@ -655,7 +675,7 @@ export default function GuidePage() {
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="w-full py-2 mt-2 rounded-lg bg-transparent text-[#5f5e5a] dark:text-[#a8a7a0] text-[12px] font-bold border-none cursor-pointer"
+                className="w-full py-2 mt-2 rounded-lg bg-transparent text-[var(--text-secondary)] text-[12px] font-bold border-none cursor-pointer"
               >
                 Go back
               </button>
@@ -669,7 +689,7 @@ export default function GuidePage() {
 
 function StopCard({ stop, index, isActive, onClick }: { stop: GuideStop; index: number; isActive: boolean; onClick: () => void }) {
   return (
-    <div id={`stop-${index}`} className={`border rounded-xl overflow-hidden mb-2.5 bg-white dark:bg-[#1e1e1c] transition-colors ${isActive ? 'border-[var(--color-primary)]' : 'border-black/10 dark:border-white/9'}`}>
+    <div id={`stop-${index}`} className={`border rounded-xl overflow-hidden mb-2.5 bg-[var(--bg-secondary)] transition-colors ${isActive ? 'border-[var(--color-primary)]' : 'border-[var(--border-color)]'}`}>
       <div className="px-3 py-[11px] flex gap-2.5 items-start cursor-pointer" onClick={onClick}>
         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 mt-[1px] ${isActive ? 'bg-[var(--color-primary)] text-white' : 'bg-[#E1F5EE] text-[#085041]'}`}>
           {index + 1}
@@ -677,7 +697,7 @@ function StopCard({ stop, index, isActive, onClick }: { stop: GuideStop; index: 
         <div className="flex-1">
           <div className="text-[14px] font-bold">{stop.name}</div>
           {stop.description && (
-            <div className="text-[13px] text-[#5f5e5a] dark:text-[#a8a7a0] mt-[2px] leading-relaxed line-clamp-3">{stop.description}</div>
+            <div className="text-[13px] text-[var(--text-secondary)] mt-[2px] leading-relaxed line-clamp-3">{stop.description}</div>
           )}
         </div>
       </div>

@@ -24,8 +24,11 @@ export default function Layout() {
     )},
   ]
 
+  // 100dvh, not h-screen/100vh: with interactive-widget=resizes-content the
+  // visual viewport shrinks when the soft keyboard opens, and a fixed 100vh
+  // would leave the bottom nav sitting under the keyboard.
   return (
-    <div className="flex flex-col h-screen max-w-[430px] mx-auto" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex flex-col h-[100dvh] max-w-[430px] mx-auto" style={{ background: 'var(--bg-primary)' }}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-[var(--color-primary)] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to content</a>
       <main id="main-content" className="flex-1 overflow-y-auto min-h-0">
         <Outlet />

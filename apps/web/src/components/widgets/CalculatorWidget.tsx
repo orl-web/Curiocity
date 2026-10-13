@@ -119,7 +119,7 @@ export default function CalculatorWidget() {
   }) => {
     const baseClass = 'sketch-button flex items-center justify-center font-bold text-lg rounded-lg h-12 transition-colors'
     const variantClass = {
-      default: 'bg-white dark:bg-[#2a2a28] text-[#1e1e1c] dark:text-white hover:bg-black/5 dark:hover:bg-white/10',
+      default: 'bg-white dark:bg-[#2a2a28] text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10',
       operator: 'bg-[#aa3bff] text-white hover:bg-[#9a2bef]',
       accent: 'bg-[#F27732] text-white hover:bg-[#d96a28]',
       clear: 'bg-[#e74c3c] text-white hover:bg-[#c0392b]',
@@ -136,9 +136,9 @@ export default function CalculatorWidget() {
   }
 
   return (
-    <div className="sketch-widget p-4 bg-[#f5f5f3] dark:bg-[#1e1e1c] rounded-lg">
+    <div className="sketch-widget p-4 bg-[var(--bg-secondary)] rounded-lg">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="sketch-title text-sm font-bold text-[#1e1e1c] dark:text-white tracking-wide">
+        <h3 className="sketch-title text-sm font-bold text-[var(--text-primary)] tracking-wide">
           CALCULATOR
         </h3>
       </div>
@@ -150,7 +150,7 @@ export default function CalculatorWidget() {
               {previousValue} {operation}
             </div>
           )}
-          <div className="text-2xl font-mono font-bold text-[#1e1e1c] dark:text-white sketch-text truncate">
+          <div className="text-2xl font-mono font-bold text-[var(--text-primary)] sketch-text truncate">
             {display}
           </div>
         </div>

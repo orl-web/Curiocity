@@ -141,12 +141,12 @@ export default function HomePage() {
     <div className="flex flex-col min-h-0">
       <SEO />
       {/* Header */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 sticky top-0 z-20 shrink-0" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-2.5 sticky top-0 z-20 shrink-0" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
         <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-display)' }}>
           Curio<span style={{ color: 'var(--color-primary)' }}>City</span>
         </h1>
         <div className="flex-1 relative" role="search" ref={searchRef}>
-          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b4b2a9] dark:text-[#706f6a]">
+          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
             <circle cx="7" cy="7" r="4.5"/>
             <line x1="10.5" y1="10.5" x2="14" y2="14"/>
           </svg>
@@ -157,22 +157,22 @@ export default function HomePage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true) }}
             onFocus={() => search.length >= 2 && setShowSuggestions(true)}
-            className="w-full bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 rounded-full py-[7px] pl-[30px] pr-8 text-[13px] text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full py-[7px] pl-[30px] pr-8 text-[13px] text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
           />
           {search && (
             <button onClick={() => { setSearch(''); setSuggestions([]); setShowSuggestions(false) }}
               aria-label="Clear search"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#b4b2a9] dark:text-[#706f6a] hover:text-[#5f5e5a] dark:hover:text-[#a8a7a0] cursor-pointer bg-transparent border-none p-0">
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)] cursor-pointer bg-transparent border-none p-0">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
             </button>
           )}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl shadow-lg overflow-hidden z-30">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-lg overflow-hidden z-30">
               {suggestions.map((g) => (
                 <button key={g.id} onClick={() => handleSuggestionClick(g)}
-                  className="w-full px-3 py-2.5 text-left hover:bg-[#f5f5f3] dark:hover:bg-[#272725] cursor-pointer bg-transparent border-none flex items-center gap-2.5">
+                  className="w-full px-3 py-2.5 text-left hover:bg-[var(--bg-primary)] dark:hover:bg-[var(--bg-tertiary)] cursor-pointer bg-transparent border-none flex items-center gap-2.5">
                   <span className="text-[13px] font-bold truncate">{g.title}</span>
-                  <span className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a] ml-auto shrink-0">{g.city}</span>
+                  <span className="text-[11px] text-[var(--text-muted)] ml-auto shrink-0">{g.city}</span>
                 </button>
               ))}
             </div>
@@ -184,13 +184,13 @@ export default function HomePage() {
       </div>
 
       {/* Status Bar */}
-      <div className="px-4 py-[5px] bg-[#f5f5f3] dark:bg-[#272725] border-b border-black/10 dark:border-white/9 text-[11px] text-[#b4b2a9] dark:text-[#706f6a] flex items-center gap-[5px] shrink-0" style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+      <div className="px-4 py-[5px] bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] text-[11px] text-[var(--text-muted)] flex items-center gap-[5px] shrink-0" style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
         <div className="w-[5px] h-[5px] rounded-full" style={{ background: 'var(--color-primary)' }}></div>
         <span aria-live="polite">{guidesList?.length || 0} {t('home.guidesAvailable')}</span>
       </div>
 
       {/* Category Filter */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none' }}>
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none' }}>
         {categories.map((cat) => (
           <button
             key={cat.id}
@@ -198,7 +198,7 @@ export default function HomePage() {
             className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
               activeCategory === cat.id
                 ? 'font-bold text-white'
-                : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
+                : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
             }`}
             style={activeCategory === cat.id ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
           >
@@ -210,7 +210,7 @@ export default function HomePage() {
           className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
             nearMeActive
               ? 'font-bold text-white'
-              : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
+              : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
           }`}
           style={nearMeActive ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
         >
@@ -219,8 +219,8 @@ export default function HomePage() {
       </div>
 
       {/* Time-of-day filter */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none', background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
-        <span className="shrink-0 self-center text-[11px] font-bold text-[#b4b2a9] dark:text-[#706f6a] uppercase tracking-wide">{t('time.filter')}</span>
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none', background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+        <span className="shrink-0 self-center text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wide">{t('time.filter')}</span>
         {TIME_SLOTS.map((slot) => (
           <button
             key={slot}
@@ -229,7 +229,7 @@ export default function HomePage() {
             className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
               timeSlots.includes(slot)
                 ? 'bg-[#7B61FF] border-[#7B61FF] text-white font-bold'
-                : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
+                : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
             }`}
           >
             {TIME_SLOT_EMOJI[slot]} {t(`time.${slot}` as any)}
@@ -238,7 +238,7 @@ export default function HomePage() {
         {timeSlots.length > 0 && (
           <button
             onClick={() => setTimeSlots([])}
-            className="shrink-0 px-3 py-[5px] rounded-full border border-black/20 dark:border-white/18 text-[12px] cursor-pointer whitespace-nowrap bg-transparent text-[#5f5e5a] dark:text-[#a8a7a0]"
+            className="shrink-0 px-3 py-[5px] rounded-full border border-black/20 dark:border-white/18 text-[12px] cursor-pointer whitespace-nowrap bg-transparent text-[var(--text-secondary)]"
           >
             ✕
           </button>
@@ -261,13 +261,13 @@ export default function HomePage() {
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
+            <p className="text-sm text-[var(--text-secondary)] text-center">{error}</p>
             <button onClick={loadGuides} aria-label="Retry loading guides" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : (guidesList || []).length === 0 ? (
           <div role="status" className="flex flex-col items-center justify-center py-12 gap-3 text-center">
             <span className="text-3xl" aria-hidden="true">🔍</span>
-            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0]">
+            <p className="text-sm text-[var(--text-secondary)]">
               {search || activeCategory !== 'all' || nearMeActive || timeSlots.length > 0
                 ? 'No guides match your filters — try a different category or clear the search.'
                 : 'No guides yet — be the first to create one!'}
@@ -310,12 +310,12 @@ const categoryIcons: Record<string, string> = {
 
 const categoryColors: Record<string, string> = {
   food: 'bg-[#E1F5EE] text-[#085041]',
-  architecture: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-  history: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-  art: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-  nature: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-  characters: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-  general: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+  architecture: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+  history: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+  art: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+  nature: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+  characters: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+  general: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
 }
 
 function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => void; index: number }) {
@@ -351,10 +351,10 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
   }, [guide, isFirstTwo])
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] active:scale-[0.98] transition-all" onClick={onClick}>
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] active:scale-[0.98] transition-all" onClick={onClick}>
       <div className="p-3">
         <div className="flex gap-[11px]">
-          <div className="w-[86px] h-[76px] rounded-lg border border-black/10 dark:border-white/9 flex-shrink-0 overflow-hidden relative">
+          <div className="w-[86px] h-[76px] rounded-lg border border-[var(--border-color)] flex-shrink-0 overflow-hidden relative">
             {isFirstTwo && mapSvg ? (
               <div dangerouslySetInnerHTML={{ __html: mapSvg }} className="w-full h-full" />
             ) : (guide as any).coverImageUrl || guide.coverImage ? (
@@ -372,24 +372,24 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-bold leading-[1.3] mb-1 line-clamp-2">{guide.title}</div>
+            <div className="text-[14px] font-bold leading-[1.3] mb-1 line-clamp-2" style={{ fontFamily: 'var(--font-display)' }}>{guide.title}</div>
             <div className="flex items-center gap-[5px] mb-[5px]">
               <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: 'var(--color-primary)' }}>
                 {guide.user?.displayName?.charAt(0) || '?'}
               </div>
-              <span className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">{guide.user?.displayName || 'Creator'}</span>
+              <span className="text-[12px] text-[var(--text-secondary)] truncate">{guide.user?.displayName || 'Creator'}</span>
             </div>
             <div className="flex flex-wrap gap-[5px]">
-              <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>
+              <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'}`}>
                 {guide.category}
               </span>
               {guide.duration && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#f5f5f3] dark:bg-[#272725] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10 dark:border-white/9">
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)]">
                   ⏱ {guide.duration}
                 </span>
               )}
               {guide.distance && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#f5f5f3] dark:bg-[#272725] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10 dark:border-white/9">
+                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)]">
                   📏 {guide.distance}
                 </span>
               )}
@@ -415,17 +415,17 @@ function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => voi
           </div>
         </div>
       </div>
-      <div className="px-3 py-2 border-t border-black/10 dark:border-white/9 flex items-center justify-between">
+      <div className="px-3 py-2 border-t border-[var(--border-color)] flex items-center justify-between">
         <span className="text-[12px] font-bold">
           {guide.priceModel === 'free' ? (
             <span className="text-[var(--color-primary)]">Free</span>
           ) : guide.priceModel === 'paid' ? (
             <span className="text-[#BA7517]">€0.99</span>
           ) : (
-            <span className="text-[#5f5e5a] dark:text-[#a8a7a0]">Watch ad</span>
+            <span className="text-[var(--text-secondary)]">Watch ad</span>
           )}
         </span>
-        <span className="text-[12px] text-[#b4b2a9] dark:text-[#706f6a]">
+        <span className="text-[12px] text-[var(--text-muted)]">
           {guide.distance_km != null && <span className="text-[var(--color-primary)] font-bold mr-2">{guide.distance_km} km</span>}
           {guide.city}
         </span>

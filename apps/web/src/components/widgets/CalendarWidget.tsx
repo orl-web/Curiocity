@@ -78,9 +78,9 @@ export default function CalendarWidget() {
   }
 
   return (
-    <div className="sketch-widget p-4 bg-[#f5f5f3] dark:bg-[#1e1e1c] rounded-lg">
+    <div className="sketch-widget p-4 bg-[var(--bg-secondary)] rounded-lg">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="sketch-title text-sm font-bold text-[#1e1e1c] dark:text-white tracking-wide">
+        <h3 className="sketch-title text-sm font-bold text-[var(--text-primary)] tracking-wide">
           CALENDAR
         </h3>
         <button
@@ -94,17 +94,17 @@ export default function CalendarWidget() {
       <div className="flex items-center justify-between mb-3">
         <button
           onClick={goToPrevMonth}
-          className="sketch-button w-8 h-8 flex items-center justify-center text-[#5f5e5a] dark:text-[#a8a7a0] hover:bg-black/5 dark:hover:bg-white/5 rounded"
+          className="sketch-button w-8 h-8 flex items-center justify-center text-[var(--text-secondary)] hover:bg-black/5 dark:hover:bg-white/5 rounded"
           aria-label="Previous month"
         >
           ←
         </button>
-        <span className="sketch-text font-bold text-[#1e1e1c] dark:text-white">
+        <span className="sketch-text font-bold text-[var(--text-primary)]">
           {MONTHS[month]} {year}
         </span>
         <button
           onClick={goToNextMonth}
-          className="sketch-button w-8 h-8 flex items-center justify-center text-[#5f5e5a] dark:text-[#a8a7a0] hover:bg-black/5 dark:hover:bg-white/5 rounded"
+          className="sketch-button w-8 h-8 flex items-center justify-center text-[var(--text-secondary)] hover:bg-black/5 dark:hover:bg-white/5 rounded"
           aria-label="Next month"
         >
           →
@@ -115,7 +115,7 @@ export default function CalendarWidget() {
         {DAYS.map((day) => (
           <div
             key={day}
-            className="text-center text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] py-1"
+            className="text-center text-[10px] font-bold text-[var(--text-secondary)] py-1"
           >
             {day}
           </div>
@@ -128,7 +128,7 @@ export default function CalendarWidget() {
             key={index}
             onClick={() => setSelectedDate(item.date)}
             className={`sketch-box aspect-square flex items-center justify-center text-sm rounded
-              ${!item.isCurrentMonth ? 'text-[#b4b2a9] dark:text-[#706f6a] opacity-50' : ''}
+              ${!item.isCurrentMonth ? 'text-[var(--text-muted)] opacity-50' : ''}
               ${isToday(item.date) ? 'bg-[#1D9E75] text-white font-bold' : ''}
               ${isSelected(item.date) && !isToday(item.date) ? 'bg-[#aa3bff] text-white' : ''}
               ${!isToday(item.date) && !isSelected(item.date) ? 'hover:bg-black/5 dark:hover:bg-white/5' : ''}
@@ -141,7 +141,7 @@ export default function CalendarWidget() {
 
       {selectedDate && (
         <div className="mt-3 pt-3 border-t border-black/10 dark:border-white/10">
-          <p className="text-xs text-[#5f5e5a] dark:text-[#a8a7a0]">
+          <p className="text-xs text-[var(--text-secondary)]">
             Selected: {selectedDate.toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',

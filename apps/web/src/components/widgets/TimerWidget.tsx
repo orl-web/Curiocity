@@ -123,18 +123,18 @@ export default function TimerWidget({ onTimeUp }: TimerWidgetProps) {
           isSpinning ? 'sketch-spinning' : ''
         }`}
       >
-        <span className="text-4xl font-mono font-bold text-[#1e1e1c] dark:text-white sketch-text">
+        <span className="text-4xl font-mono font-bold text-[var(--text-primary)] sketch-text">
           {value}
         </span>
       </div>
-      <span className="text-[10px] mt-1 text-[#5f5e5a] dark:text-[#a8a7a0]">{label}</span>
+      <span className="text-[10px] mt-1 text-[var(--text-secondary)]">{label}</span>
     </div>
   )
 
   return (
-    <div className="sketch-widget p-4 bg-[#f5f5f3] dark:bg-[#1e1e1c] rounded-lg">
+    <div className="sketch-widget p-4 bg-[var(--bg-secondary)] rounded-lg">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="sketch-title text-sm font-bold text-[#1e1e1c] dark:text-white tracking-wide">
+        <h3 className="sketch-title text-sm font-bold text-[var(--text-primary)] tracking-wide">
           TIME-OUT
         </h3>
         <button
@@ -150,7 +150,7 @@ export default function TimerWidget({ onTimeUp }: TimerWidgetProps) {
       <div className="flex items-center justify-center gap-2 mb-4">
         <SlotDigit value={displayMinutes[0]} label="" />
         <SlotDigit value={displayMinutes[1]} label="MIN" />
-        <div className="text-3xl font-bold text-[#1e1e1c] dark:text-white mx-1 sketch-text">:</div>
+        <div className="text-3xl font-bold text-[var(--text-primary)] mx-1 sketch-text">:</div>
         <SlotDigit value={displaySeconds[0]} label="" />
         <SlotDigit value={displaySeconds[1]} label="SEC" />
       </div>

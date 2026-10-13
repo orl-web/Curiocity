@@ -32,7 +32,7 @@ export default function FollowingPage() {
   return (
     <div className="flex flex-col min-h-0">
       <SEO title="Feed" description="Guides from creators you follow on CurioCity" />
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 sticky top-0 z-20 shrink-0">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 sticky top-0 z-20 shrink-0">
         <h1 className="text-lg font-bold text-[var(--color-primary)] tracking-tight">Feed</h1>
       </div>
 
@@ -44,7 +44,7 @@ export default function FollowingPage() {
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">{error}</p>
+            <p className="text-sm text-[var(--text-secondary)] text-center">{error}</p>
             <button onClick={loadFeed} aria-label="Retry loading feed" className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer">Retry</button>
           </div>
         ) : guides.length === 0 ? (
@@ -55,7 +55,7 @@ export default function FollowingPage() {
               <path d="M23 21v-2a4 4 0 00-3-3.87"/>
               <path d="M16 3.13a4 4 0 010 7.75"/>
             </svg>
-            <p className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] text-center">Follow creators to see their guides here</p>
+            <p className="text-sm text-[var(--text-secondary)] text-center">Follow creators to see their guides here</p>
           </div>
         ) : (
           guides.map((guide) => (
@@ -70,21 +70,21 @@ export default function FollowingPage() {
 function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
   const categoryColors: Record<string, string> = {
     food: 'bg-[#E1F5EE] text-[#085041]',
-    architecture: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-    history: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-    art: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
-    nature: 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0] border border-black/10',
+    architecture: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+    history: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+    art: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
+    nature: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
   }
 
   return (
-    <div className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] transition-colors" onClick={onClick}>
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] transition-colors" onClick={onClick}>
       <div className="p-3">
         <div className="flex gap-[11px]">
-          <div className="w-[86px] h-[76px] rounded-lg bg-[#f5f5f3] dark:bg-[#272725] border border-black/10 dark:border-white/9 flex-shrink-0 overflow-hidden">
+          <div className="w-[86px] h-[76px] rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex-shrink-0 overflow-hidden">
             {guide.coverImage || guide.coverImageUrl ? (
               <img src={guide.coverImage || guide.coverImageUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-[#b4b2a9] dark:text-[#706f6a] text-xs">
+              <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
                 {guide.city?.charAt(0) || '?'}
               </div>
             )}
@@ -95,10 +95,10 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
               <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: 'var(--color-primary)' }}>
                 {guide.user?.displayName?.charAt(0) || '?'}
               </div>
-              <span className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">{guide.user?.displayName || 'Creator'}</span>
+              <span className="text-[12px] text-[var(--text-secondary)] truncate">{guide.user?.displayName || 'Creator'}</span>
             </div>
             <div className="flex flex-wrap gap-[5px]">
-              <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[#f5f5f3] text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>
+              <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'}`}>
                 {guide.category}
               </span>
               {guide.priceModel === 'free' && (
@@ -114,17 +114,17 @@ function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
           </div>
         </div>
       </div>
-      <div className="px-3 py-2 border-t border-black/10 dark:border-white/9 flex items-center justify-between">
+      <div className="px-3 py-2 border-t border-[var(--border-color)] flex items-center justify-between">
         <span className="text-[12px] font-bold">
           {guide.priceModel === 'free' ? (
             <span className="text-[var(--color-primary)]">Free</span>
           ) : guide.priceModel === 'paid' ? (
             <span className="text-[#BA7517]">€0.99</span>
           ) : (
-            <span className="text-[#5f5e5a] dark:text-[#a8a7a0]">Watch ad</span>
+            <span className="text-[var(--text-secondary)]">Watch ad</span>
           )}
         </span>
-        <span className="text-[12px] text-[#b4b2a9] dark:text-[#706f6a]">
+        <span className="text-[12px] text-[var(--text-muted)]">
           {guide.distance_km != null && <span className="text-[var(--color-primary)] font-bold mr-2">{guide.distance_km} km</span>}
           {guide.city}
         </span>

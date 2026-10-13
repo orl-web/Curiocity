@@ -6,7 +6,7 @@ import { getAllOfflineGuides } from '../utils/offlineStorage'
 import { getAllImportedLocations } from '../utils/importedLocations'
 import { sanitizeHtml } from '../utils/sanitize'
 import SEO from '../components/SEO'
-import type { Guide, TimeSlot } from '../types'
+import type { Guide, GuideStop, TimeSlot } from '../types'
 import type { ImportedLocation } from '../utils/importedLocations'
 
 const ROUTE_COLORS = ['#1D9E75', '#E24B4A', '#378ADD', '#D4537E', '#BA7517', '#7B61FF', '#FF6B35', '#00B4D8']
@@ -36,10 +36,10 @@ function categoryIcon(category: string, color: string, size = 28) {
   })
 }
 
-function stopNumberIcon(num: number, color: string, size = 22) {
+function stopNumberIcon(num: number, color: string, size = 22, active = false) {
   return L.divIcon({
     className: '',
-    html: `<div style="width:${size}px;height:${size}px;background:#fff;color:${color};border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;">${num}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;background:${active ? color : '#fff'};color:${active ? '#fff' : color};border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;">${num}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   })
@@ -88,6 +88,35 @@ function matchesFilters(g: Guide, catFilter: string, durFilter: string, timeFilt
   return true
 }
 
+// Stops that can actually be plotted, preserving their original index so
+// numbers in the preview strip still match the guide's stop list.
+function positionedStops(guide: Guide): { stop: GuideStop; index: number }[] {
+  return (guide.stops || [])
+    .map((stop, index) => ({ stop, index }))
+    .filter(({ stop }) => stop.latitude != null && stop.longitude != null && !isNaN(Number(stop.latitude)) && !isNaN(Number(stop.longitude)))
+}
+
+// Which stop to pin a guide on: the closest one to the user when we know
+// where they are, otherwise the first stop.
+function nearestStop(stops: ReturnType<typeof positionedStops>, lat: number | null, lng: number | null) {
+  if (lat == null || lng == null) return stops[0]
+  let best = stops[0]
+  let bestKm = Infinity
+  for (const entry of stops) {
+    const km = haversineKm(lat, lng, Number(entry.stop.latitude), Number(entry.stop.longitude))
+    if (km < bestKm) { bestKm = km; best = entry }
+  }
+  return best
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export default function MapPage() {
   const navigate = useNavigate()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -112,6 +141,14 @@ export default function MapPage() {
   const [showLayers, setShowLayers] = useState(false)
   const userMarkerRef = useRef<L.Marker | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // Guides are drawn into baseLayerRef (one pin each) and only the selected
+  // guide's route goes into selectedLayerRef, so toggling a filter no longer
+  // tears down and rebuilds every marker on the map.
+  const baseLayerRef = useRef<L.LayerGroup | null>(null)
+  const selectedLayerRef = useRef<L.LayerGroup | null>(null)
+  // Kept in a ref so the strip can be scrolled to center the active chip on
+  // desktop, where it will not auto-scroll into view.
+  const stopStripRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!navigator.geolocation) { setGeoError('Geolocation not available — showing all guides'); return }
@@ -126,7 +163,7 @@ export default function MapPage() {
 
   useEffect(() => {
     if (!mapRef.current) return
-    const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false, center: [41.9028, 12.4964], zoom: 13 })
+    const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false, center: [41.9028, 12.4964], zoom: 13, preferCanvas: true })
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -137,8 +174,25 @@ export default function MapPage() {
       setPreviewGuide(null)
       map.flyTo(e.latlng, Math.max(map.getZoom() + 2, 15), { duration: 0.8 })
     })
+    baseLayerRef.current = L.layerGroup().addTo(map)
+    selectedLayerRef.current = L.layerGroup().addTo(map)
     mapInstance.current = map
-    return () => { map.remove(); mapInstance.current = null }
+
+    // Leaflet measures the container once at init. The app shell is a flex
+    // column, so the container's box can change afterwards (soft keyboard,
+    // orientation, panels). Without this the tiles go grey or misalign.
+    const invalidate = () => map.invalidateSize({ animate: false })
+    const observer = new ResizeObserver(invalidate)
+    observer.observe(mapRef.current)
+    invalidate()
+
+    return () => {
+      observer.disconnect()
+      map.remove()
+      mapInstance.current = null
+      baseLayerRef.current = null
+      selectedLayerRef.current = null
+    }
   }, [])
 
   const fetchAllGuides = useCallback((extra?: { city?: string }) => {
@@ -169,9 +223,16 @@ export default function MapPage() {
     }
   }, [userLat, userLng])
 
+  // Closing the overlay restores the full-height container, so Leaflet has to
+  // be told to re-measure or the tiles stay aligned to the shrunken box.
+  const closeSearch = () => {
+    setShowSearch(false)
+    requestAnimationFrame(() => mapInstance.current?.invalidateSize({ animate: false }))
+  }
+
   const handleSearch = (city: string) => {
     setSearchCity(city)
-    setShowSearch(false)
+    closeSearch()
     setLoading(true)
     const params: any = { limit: 50 }
     if (city) params.city = city
@@ -179,40 +240,48 @@ export default function MapPage() {
     guides.list(params).then((res) => {
       const data = res.data.guides || res.data
       setNearbyGuides(Array.isArray(data) ? data : [])
-      if (city && mapInstance.current && data[0]?.stops?.length) {
-        const s = data[0].stops.find((st: any) => st.latitude && st.longitude) || data[0].stops[0]
-        if (s?.latitude && s?.longitude) mapInstance.current.flyTo([Number(s.latitude), Number(s.longitude)], 14, { duration: 1 })
+      // Land on the first stop, or on the guide's recorded centre if it has no
+      // positioned stops, so a search never leaves the map parked on nothing.
+      const first = Array.isArray(data) ? data[0] : undefined
+      if (city && first && mapInstance.current) {
+        const s = positionedStops(first)[0]
+        const clat = Number(first.mapCenterLat), clng = Number(first.mapCenterLng)
+        if (s) {
+          mapInstance.current.flyTo([Number(s.stop.latitude), Number(s.stop.longitude)], 14, { duration: 1 })
+        } else if (!isNaN(clat) && !isNaN(clng) && (clat !== 0 || clng !== 0)) {
+          mapInstance.current.flyTo([clat, clng], 13, { duration: 1 })
+        }
       }
-    }).catch(() => setNearbyGuides([])).finally(() => setLoading(false))
+    }).catch(() => setNearbyGuides([]))
+      .finally(() => setLoading(false))
   }
 
   const handleGuideClick = (guide: Guide, stopIdx = 0) => {
     setPreviewGuide(guide)
     setActiveStopIdx(stopIdx)
-    const stops = (guide.stops || []).filter((s) => s.latitude != null && s.longitude != null)
+    const stops = positionedStops(guide)
     if (stops.length > 0 && mapInstance.current) {
-      mapInstance.current.flyToBounds(L.latLngBounds(stops.map((s) => [Number(s.latitude), Number(s.longitude)])), { padding: [60, 60], maxZoom: 16, duration: 0.8 })
+      mapInstance.current.flyToBounds(L.latLngBounds(stops.map((s) => [Number(s.stop.latitude), Number(s.stop.longitude)])), { padding: [60, 60], maxZoom: 16, duration: 0.8 })
     }
   }
 
   const navigateStop = (dir: number) => {
     if (!previewGuide) return
-    const stops = (previewGuide.stops || []).filter((s) => s.latitude != null && s.longitude != null)
-    const next = activeStopIdx + dir
-    if (next >= 0 && next < stops.length) {
-      setActiveStopIdx(next)
-      mapInstance.current?.flyTo([Number(stops[next].latitude), Number(stops[next].longitude)], 17, { duration: 0.5 })
+    const stops = positionedStops(previewGuide)
+    const current = stops.findIndex((s) => s.index === activeStopIdx)
+    const next = stops[current + dir]
+    if (next) {
+      setActiveStopIdx(next.index)
+      mapInstance.current?.flyTo([Number(next.stop.latitude), Number(next.stop.longitude)], 17, { duration: 0.5 })
     }
   }
 
   useEffect(() => {
     const map = mapInstance.current
-    if (!map) return
+    const base = baseLayerRef.current
+    if (!map || !base) return
 
-    map.eachLayer((layer) => {
-      if (layer instanceof L.Polyline && !(layer instanceof L.Marker)) map.removeLayer(layer)
-      if (layer instanceof L.Marker && layer !== userMarkerRef.current) map.removeLayer(layer)
-    })
+    base.clearLayers()
 
     const filtered = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter))
 
@@ -222,44 +291,77 @@ export default function MapPage() {
       if (!savedGuides.find((s) => s.id === g.id)) all.push({ guide: g, color: ROUTE_COLORS[i % ROUTE_COLORS.length], saved: false })
     })
 
-    all.forEach(({ guide, color, saved }) => {
-      const stops = (guide.stops || []).filter((s) => s.latitude != null && s.longitude != null && !isNaN(Number(s.latitude)) && !isNaN(Number(s.longitude)))
+    // One pin per guide. Drawing every stop of every guide produced 36 markers
+    // for 9 guides, which made the map unreadable. The full route only appears
+    // once a guide is selected (see the effect below).
+    all.forEach(({ guide, color }) => {
+      const stops = positionedStops(guide)
       const cc = CATEGORY_COLORS[guide.category] || color
 
       if (stops.length === 0) {
         const clat = Number(guide.mapCenterLat), clng = Number(guide.mapCenterLng)
         if (!isNaN(clat) && !isNaN(clng) && (clat !== 0 || clng !== 0)) {
           L.marker([clat, clng], { icon: categoryIcon(guide.category, cc) })
-            .addTo(map).on('click', () => handleGuideClick(guide, 0))
+            .addTo(base).on('click', () => handleGuideClick(guide, 0))
         }
         return
       }
-      if (stops.length === 1) {
-        L.marker([Number(stops[0].latitude), Number(stops[0].longitude)], { icon: categoryIcon(guide.category, cc) })
-          .addTo(map).on('click', () => handleGuideClick(guide, 0))
-        return
-      }
 
-      const coords: L.LatLngExpression[] = stops.map((s) => [Number(s.latitude), Number(s.longitude)])
-      L.polyline(coords, { color: cc, weight: saved ? 5 : 3, opacity: saved ? 0.9 : 0.7, dashArray: saved ? undefined : '10 6' })
-        .addTo(map).on('click', (e: L.LeafletEvent) => { L.DomEvent.stopPropagation(e); handleGuideClick(guide) })
-
-      stops.forEach((s, si) => {
-        L.marker([Number(s.latitude), Number(s.longitude)], { icon: stopNumberIcon(si + 1, cc) })
-          .addTo(map).on('click', (e: L.LeafletEvent) => { L.DomEvent.stopPropagation(e); handleGuideClick(guide, si) })
-      })
+      // Anchor on whichever stop is closest to the user, falling back to the
+      // first stop so guides still show up before geolocation resolves.
+      const anchor = nearestStop(stops, userLat, userLng)
+      L.marker([Number(anchor.stop.latitude), Number(anchor.stop.longitude)], { icon: categoryIcon(guide.category, cc) })
+        .addTo(base).on('click', () => handleGuideClick(guide, anchor.index))
     })
 
     if (showImported) {
       importedLocations.filter((l) => l.visible).forEach((loc) => {
         L.circleMarker([loc.latitude, loc.longitude], { radius: 7, color: loc.color, fillColor: loc.color, fillOpacity: 0.6, weight: 2 })
-          .addTo(map).bindPopup(`<div style="font-family:system-ui;max-width:180px"><strong style="font-size:12px">📌 ${sanitizeHtml(loc.name)}</strong></div>`, { closeButton: false, offset: [0, -4] })
+          .addTo(base).bindPopup(`<div style="font-family:system-ui;max-width:180px"><strong style="font-size:12px">📌 ${sanitizeHtml(loc.name)}</strong></div>`, { closeButton: false, offset: [0, -4] })
       })
     }
-  }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter, timeFilter])
+  }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter, timeFilter, userLat, userLng])
+
+  // The selected guide's route lives in its own layer so it can be redrawn
+  // when the active stop changes without touching the other guides.
+  useEffect(() => {
+    const selected = selectedLayerRef.current
+    if (!selected) return
+    selected.clearLayers()
+    if (!previewGuide) return
+
+    const stops = positionedStops(previewGuide)
+    if (stops.length === 0) return
+    const cc = CATEGORY_COLORS[previewGuide.category] || ROUTE_COLORS[0]
+
+    if (stops.length > 1) {
+      const coords: L.LatLngExpression[] = stops.map((s) => [Number(s.stop.latitude), Number(s.stop.longitude)])
+      L.polyline(coords, { color: cc, weight: 4, opacity: 0.85, dashArray: '10 6' }).addTo(selected)
+    }
+
+    stops.forEach((s, si) => {
+      const isActive = s.index === activeStopIdx
+      L.marker([Number(s.stop.latitude), Number(s.stop.longitude)], { icon: stopNumberIcon(si + 1, cc, isActive ? 26 : 22, isActive) })
+        .addTo(selected).on('click', (e: L.LeafletEvent) => { L.DomEvent.stopPropagation(e); setActiveStopIdx(s.index) })
+    })
+  }, [previewGuide, activeStopIdx])
 
   const filteredCount = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter)).length
-  const previewStops = previewGuide?.stops?.filter((s) => s.latitude != null && s.longitude != null) || []
+  const previewStops = previewGuide ? positionedStops(previewGuide) : []
+  const activeStopPos = previewStops.findIndex((s) => s.index === activeStopIdx)
+
+  // Center the active stop chip in the strip. Works everywhere and does not
+  // need scrollIntoView, which would also scroll the page container.
+  useEffect(() => {
+    const strip = stopStripRef.current
+    if (!strip || activeStopPos < 0) return
+    const chip = strip.children[0]?.children[activeStopPos] as HTMLElement | undefined
+    if (!chip) return
+    strip.scrollTo({ left: chip.offsetLeft - strip.clientWidth / 2 + chip.clientWidth / 2, behavior: 'smooth' })
+  }, [activeStopPos])
+  const directionsHref = activeStopPos >= 0 && previewStops[activeStopPos]
+    ? `https://www.google.com/maps/dir/?api=1&destination=${previewStops[activeStopPos].stop.latitude},${previewStops[activeStopPos].stop.longitude}`
+    : null
 
   return (
     <div className="flex flex-col h-full relative">
@@ -273,25 +375,29 @@ export default function MapPage() {
 
       {/* Search overlay */}
       {showSearch && (
-        <div className="absolute inset-0 z-[1002] bg-black/40 flex flex-col" onClick={() => setShowSearch(false)}>
-          <div className="bg-white dark:bg-[#1e1e1c] mx-3 mt-3 rounded-2xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute inset-0 z-[1002] bg-black/40 flex flex-col" onClick={closeSearch}>
+          <div className="bg-[var(--bg-secondary)] mx-3 mt-3 rounded-2xl shadow-xl p-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-2.5">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#b4b2a9" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
-              <input autoFocus type="text" placeholder="Search city…" value={searchCity} onChange={(e) => setSearchCity(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(searchCity); if (e.key === 'Escape') setShowSearch(false) }}
-                className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[#b4b2a9]" />
+              {/* No autoFocus: it opens the soft keyboard on mount, which shrinks
+                  the viewport before Leaflet has measured the container. */}
+              <input type="text" placeholder="Search city…" value={searchCity} onChange={(e) => setSearchCity(e.target.value)} enterKeyHint="search"
+                onKeyDown={(e) => { if (e.key === 'Enter') { handleSearch(searchCity); e.currentTarget.blur() } if (e.key === 'Escape') closeSearch() }}
+                className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-[var(--text-muted)]" />
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button onClick={() => { handleSearch(''); setSearchCity('') }} className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--color-primary)] text-white cursor-pointer border-none">All</button>
               {CITIES.map((c) => (
-                <button key={c} onClick={() => { handleSearch(c); setSearchCity(c) }}                 className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${searchCity === c ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white' : 'bg-white dark:bg-[#272725] border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>{c}</button>
+                <button key={c} onClick={() => { handleSearch(c); setSearchCity(c) }}                 className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${searchCity === c ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white' : 'bg-white dark:bg-[var(--bg-tertiary)] border-black/10 dark:border-white/10 text-[var(--text-secondary)]'}`}>{c}</button>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      <div ref={mapRef} className="flex-1 w-full" />
+      {/* Only in-flow child; the overlays below are absolute. flex-basis 0 +
+          minHeight 0 lets it fill the dvh column without overflowing. */}
+      <div ref={mapRef} className="w-full" style={{ flex: '1 1 0%', minHeight: 0 }} />
 
       {loading && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1001]">
@@ -320,7 +426,7 @@ export default function MapPage() {
           {['all', 'food', 'architecture', 'history', 'art', 'nature', 'characters'].map((cat) => (
             <button key={cat} onClick={() => setCatFilter(cat)}
               className={`shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${
-                catFilter === cat ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-md' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0] backdrop-blur-sm'
+                catFilter === cat ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-md' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[var(--text-secondary)] backdrop-blur-sm'
               }`}>
               {cat === 'all' ? 'All' : `${CATEGORY_EMOJI[cat] || ''}`}
             </button>
@@ -330,7 +436,7 @@ export default function MapPage() {
           {DURATIONS.map((d) => (
             <button key={d} onClick={() => setDurFilter(d)}
               className={`px-2 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
-                durFilter === d ? 'bg-[#BA7517] border-[#BA7517] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0] backdrop-blur-sm'
+                durFilter === d ? 'bg-[#BA7517] border-[#BA7517] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[var(--text-secondary)] backdrop-blur-sm'
               }`}>
               {DUR_LABELS[d]}
             </button>
@@ -341,7 +447,7 @@ export default function MapPage() {
             <button key={t} onClick={() => setTimeFilter((prev) => prev.includes(t) ? prev.filter((s) => s !== t) : [...prev, t])}
               title={TIME_SLOT_META[t].label}
               className={`px-2 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
-                timeFilter.includes(t) ? 'bg-[#7B61FF] border-[#7B61FF] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[#5f5e5a] dark:text-[#a8a7a0] backdrop-blur-sm'
+                timeFilter.includes(t) ? 'bg-[#7B61FF] border-[#7B61FF] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[var(--text-secondary)] backdrop-blur-sm'
               }`}>
               {TIME_SLOT_META[t].emoji}
             </button>
@@ -352,7 +458,7 @@ export default function MapPage() {
       {/* Layers panel — toggleable */}
       {showLayers && (
         <div className="absolute bottom-16 left-3 z-[1000] bg-white/95 dark:bg-[#1e1e1c]/95 rounded-2xl shadow-xl p-3 backdrop-blur-sm w-[180px]">
-          <div className="text-[10px] font-bold text-[#b4b2a9] uppercase tracking-wider mb-2">Layers</div>
+          <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Layers</div>
           <label className="flex items-center gap-2 mb-2 cursor-pointer">
             <input type="checkbox" checked={showNearby} onChange={(e) => setShowNearby(e.target.checked)} className="accent-[var(--color-primary)] w-3.5 h-3.5" />
             <span className="w-4 h-[2px]" style={{ borderTop: '2px dashed var(--color-primary)' }} />
@@ -368,79 +474,78 @@ export default function MapPage() {
             <span className="w-3 h-3 rounded-full bg-[#E24B4A]" />
             <span className="text-[12px] font-bold">Imported ({importedLocations.length})</span>
           </label>
-          <div className="mt-2 pt-2 border-t border-black/10 dark:border-white/9 flex items-center gap-2">
+          <div className="mt-2 pt-2 border-t border-[var(--border-color)] flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-[#378ADD] border-2 border-white shadow-sm" />
-            <span className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0]">You</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">You</span>
           </div>
         </div>
       )}
 
-      {/* Guide preview panel */}
+      {/* Guide preview — compact card, same proportions as the Explore list card */}
       {previewGuide && (
-        <div className="absolute bottom-14 left-3 right-3 z-[1000] bg-white dark:bg-[#1e1e1c] rounded-2xl shadow-2xl overflow-hidden border border-black/10 dark:border-white/9 max-h-[50vh] flex flex-col">
-          <div className="px-4 py-3 border-b border-black/10 dark:border-white/9 flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: CATEGORY_COLORS[previewGuide.category] + '20', color: CATEGORY_COLORS[previewGuide.category] }}>
-              {CATEGORY_EMOJI[previewGuide.category] || '📍'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-bold leading-tight">{previewGuide.title}</div>
-              <div className="text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] mt-0.5">{previewGuide.city} · {previewGuide.duration || '?'} · {previewStops.length} stops</div>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {previewGuide.timeSlots && previewGuide.timeSlots.length > 0 && previewGuide.timeSlots.map((t) => (
-                  <span key={t} className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#7B61FF]/10 text-[#7B61FF]">{TIME_SLOT_META[t].emoji} {TIME_SLOT_META[t].label}</span>
-                ))}
-                {previewGuide.validUntil && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#E24B4A]/10 text-[#E24B4A]">⏱ Limited</span>
-                )}
-                {previewGuide.recurrence && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[#378ADD]/10 text-[#378ADD]">🔁 {previewGuide.recurrence.daysOfWeek.map((d) => ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d] || d).join(', ')}</span>
-                )}
+        <div className="absolute bottom-14 left-3 right-3 z-[1000] bg-[var(--bg-secondary)] rounded-2xl shadow-2xl overflow-hidden border border-[var(--border-color)]">
+          <div className="p-3">
+            <div className="flex gap-[11px]">
+              <div className="w-[56px] h-[56px] rounded-lg flex-shrink-0 flex items-center justify-center text-2xl"
+                style={{ background: `linear-gradient(135deg, ${CATEGORY_COLORS[previewGuide.category]}33, ${CATEGORY_COLORS[previewGuide.category]}14)`, color: CATEGORY_COLORS[previewGuide.category] }}>
+                {CATEGORY_EMOJI[previewGuide.category] || '📍'}
               </div>
-              {Number(previewGuide.rating) > 0 && <div className="text-[11px] text-[#BA7517] mt-0.5">{Number(previewGuide.rating).toFixed(1)}★</div>}
-            </div>
-            <button onClick={() => setPreviewGuide(null)} className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[#5f5e5a] dark:text-[#a8a7a0] text-sm cursor-pointer shrink-0">✕</button>
-          </div>
-
-          {previewGuide.description && (
-            <div className="px-4 py-2 text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed border-b border-black/5 dark:border-white/5 line-clamp-2">
-              {previewGuide.description}
-            </div>
-          )}
-
-          <div className="flex-1 overflow-y-auto px-4 py-2">
-            {previewStops.map((s, i) => (
-              <div key={s.id || i}
-                className={`flex items-center gap-2.5 py-2 cursor-pointer rounded-lg transition-colors ${i === activeStopIdx ? 'bg-[var(--color-primary)]/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                onClick={() => { setActiveStopIdx(i); mapInstance.current?.flyTo([Number(s.latitude), Number(s.longitude)], 17, { duration: 0.5 }) }}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${i === activeStopIdx ? 'bg-[var(--color-primary)] text-white' : 'bg-black/10 dark:bg-white/10 text-[#5f5e5a] dark:text-[#a8a7a0]'}`}>
-                  {i + 1}
+              <div className="flex-1 min-w-0">
+                <div className="text-[14px] font-bold leading-[1.3] line-clamp-2" style={{ fontFamily: 'var(--font-display)' }}>{previewGuide.title}</div>
+                <div className="text-[12px] text-[var(--text-secondary)] truncate mt-0.5">
+                  {previewGuide.city} · {previewGuide.duration || '?'} · {previewStops.length} stops
+                  {Number(previewGuide.rating) > 0 && <span className="text-[var(--color-accent)] font-bold"> · {Number(previewGuide.rating).toFixed(1)}★</span>}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-bold truncate">{s.name}</div>
-                  {s.description && <div className="text-[11px] text-[#5f5e5a] dark:text-[#a8a7a0] truncate">{s.description}</div>}
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {previewGuide.timeSlots && previewGuide.timeSlots.length > 0 && previewGuide.timeSlots.map((t) => (
+                    <span key={t} className="px-1.5 py-[2px] rounded-[8px] text-[9px] font-bold bg-[#7B61FF]/10 text-[#7B61FF]">{TIME_SLOT_META[t].emoji} {TIME_SLOT_META[t].label}</span>
+                  ))}
+                  {previewGuide.validUntil && (
+                    <span className="px-1.5 py-[2px] rounded-[8px] text-[9px] font-bold bg-[#E24B4A]/10 text-[#E24B4A]">⏱ Limited</span>
+                  )}
+                  {previewGuide.recurrence && (
+                    <span className="px-1.5 py-[2px] rounded-[8px] text-[9px] font-bold bg-[#378ADD]/10 text-[#378ADD]">🔁 {previewGuide.recurrence.daysOfWeek.map((d) => ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d] || d).join(', ')}</span>
+                  )}
                 </div>
-                {i === activeStopIdx && previewStops.length > 1 && (
-                  <div className="flex gap-1">
-                    <button onClick={(e) => { e.stopPropagation(); navigateStop(-1) }} disabled={i === 0}
-                      className="w-6 h-6 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-[10px] cursor-pointer disabled:opacity-30">◀</button>
-                    <button onClick={(e) => { e.stopPropagation(); navigateStop(1) }} disabled={i === previewStops.length - 1}
-                      className="w-6 h-6 rounded-full bg-black/10 dark:bg-white/10 flex items-center justify-center text-[10px] cursor-pointer disabled:opacity-30">▶</button>
+              </div>
+              <button onClick={() => setPreviewGuide(null)} aria-label="Close preview"
+                className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[var(--text-secondary)] text-sm cursor-pointer shrink-0">✕</button>
+            </div>
+
+            {/* Stop strip: <> steps through the guide, tapping flies the map */}
+            {previewStops.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-2.5">
+                <button onClick={() => navigateStop(-1)} disabled={activeStopPos <= 0} aria-label="Previous stop"
+                  className="w-7 h-7 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center text-[11px] cursor-pointer disabled:opacity-30 shrink-0">‹</button>
+                <div className="flex-1 min-w-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }} ref={stopStripRef}>
+                  <div className="flex gap-1.5 w-max">
+                    {previewStops.map(({ stop, index }, i) => (
+                      <button key={index}
+                        onClick={() => { setActiveStopIdx(index); mapInstance.current?.flyTo([Number(stop.latitude), Number(stop.longitude)], 17, { duration: 0.5 }) }}
+                        className={`shrink-0 px-2 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all whitespace-nowrap ${
+                          index === activeStopIdx
+                            ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white'
+                            : 'bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-secondary)]'
+                        }`}>
+                        {i + 1}. {stop.name}
+                      </button>
+                    ))}
                   </div>
+                </div>
+                <button onClick={() => navigateStop(1)} disabled={activeStopPos >= previewStops.length - 1} aria-label="Next stop"
+                  className="w-7 h-7 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center text-[11px] cursor-pointer disabled:opacity-30 shrink-0">›</button>
+                {directionsHref && (
+                  <a href={directionsHref} target="_blank" rel="noopener noreferrer" aria-label="Walking directions"
+                    className="w-7 h-7 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-[11px] shrink-0 no-underline">🚶</a>
                 )}
               </div>
-            ))}
+            )}
           </div>
 
-          <div className="px-4 py-3 border-t border-black/10 dark:border-white/9 flex gap-2">
-            <button onClick={() => navigate(`/guide/${previewGuide.id}`)}
-              className="flex-1 py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-[13px] font-bold border-none cursor-pointer">
-              Open Guide →
-            </button>
-            <button onClick={() => setPreviewGuide(null)}
-              className="px-4 py-2.5 rounded-xl border border-black/10 dark:border-white/9 text-[#5f5e5a] dark:text-[#a8a7a0] text-[13px] font-bold bg-transparent cursor-pointer">
-              Close
-            </button>
-          </div>
+          <button onClick={() => navigate(`/guide/${previewGuide.id}`)}
+            className="w-full py-2.5 bg-[var(--color-primary)] text-white text-[13px] font-bold border-none cursor-pointer">
+            Open Guide →
+          </button>
         </div>
       )}
 

@@ -175,8 +175,8 @@ export default function CreatePage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-white dark:bg-[#1e1e1c] border-b border-black/10 dark:border-white/9 px-4 py-3 flex items-center gap-2.5 shrink-0">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[#f5f5f3]">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-2.5 shrink-0">
+        <button onClick={() => navigate(-1)} aria-label="Go back" className="w-7 h-7 flex items-center justify-center cursor-pointer rounded-lg hover:bg-[var(--bg-primary)]">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M11 4L6 9l5 5"/>
           </svg>
@@ -188,7 +188,7 @@ export default function CreatePage() {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-[15px] min-h-0">
         {/* Title */}
         <div className="flex flex-col gap-[5px]">
-          <label htmlFor="guide-title" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Title</label>
+          <label htmlFor="guide-title" className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Title</label>
           <input
             id="guide-title"
             type="text"
@@ -196,13 +196,13 @@ export default function CreatePage() {
             aria-required="true"
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Hidden baroque gems in Palermo"
-            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)] w-full"
+            className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] w-full"
           />
         </div>
 
         {/* City */}
         <div className="flex flex-col gap-[5px]">
-          <label htmlFor="guide-city" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">City</label>
+          <label htmlFor="guide-city" className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">City</label>
           <input
             id="guide-city"
             type="text"
@@ -210,13 +210,13 @@ export default function CreatePage() {
             aria-required="true"
             onChange={(e) => setCity(e.target.value)}
             placeholder="e.g. Palermo, Sicily"
-            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)] w-full"
+            className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] w-full"
           />
         </div>
 
         {/* Category */}
         <div className="flex flex-col gap-[5px]">
-          <label id="category-label" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Category</label>
+          <label id="category-label" className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Category</label>
           <div className="grid grid-cols-3 gap-[7px]" role="radiogroup" aria-labelledby="category-label" aria-required="true">
             {categories.map((cat) => (
               <button
@@ -227,7 +227,7 @@ export default function CreatePage() {
                 className={`py-2 px-[5px] rounded-lg border text-[12px] font-bold cursor-pointer text-center ${
                   category === cat
                     ? 'bg-[#E1F5EE] border-[var(--color-primary)] text-[#085041]'
-                    : 'bg-white dark:bg-[#1e1e1c] border-black/20 dark:border-white/18 text-[#5f5e5a] dark:text-[#a8a7a0]'
+                    : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
                 }`}
               >
                 {cat}
@@ -239,7 +239,7 @@ export default function CreatePage() {
         {/* Description */}
         <div className="flex flex-col gap-[5px]">
           <div className="flex items-center justify-between">
-            <label htmlFor="guide-description" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Teaser description</label>
+            <label htmlFor="guide-description" className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Teaser description</label>
             <input
               ref={descInputRef}
               type="file"
@@ -260,14 +260,14 @@ export default function CreatePage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What will travellers discover? Paste or import from .txt, .md, .docx files"
-            className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)] w-full min-h-[68px] resize-none"
+            className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] w-full min-h-[68px] resize-none"
           />
         </div>
 
         {/* Stops */}
         <div className="flex flex-col gap-[5px]">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Stops & curiosities</label>
+            <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Stops & curiosities</label>
             <input
               ref={gpsInputRef}
               type="file"
@@ -285,7 +285,7 @@ export default function CreatePage() {
           </div>
           <div className="flex flex-col gap-[7px]">
             {stops.map((stop, index) => (
-              <div key={index} className="bg-white dark:bg-[#1e1e1c] border border-black/10 dark:border-white/9 rounded-lg overflow-hidden">
+              <div key={index} className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg overflow-hidden">
                 <div className="px-[10px] py-[9px] flex items-start gap-2">
                   <div className="w-5 h-5 rounded-full bg-[#E1F5EE] text-[#085041] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-[1px]">
                     {index + 1}
@@ -293,13 +293,13 @@ export default function CreatePage() {
                   <div className="flex-1 min-w-0">
                     <span className="text-[13px] font-bold block truncate">{stop.name}</span>
                     {stop.latitude != null && stop.longitude != null && (
-                      <span className="text-[10px] text-[#b4b2a9] dark:text-[#706f6a] block">{stop.latitude.toFixed(5)}, {stop.longitude.toFixed(5)}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] block">{stop.latitude.toFixed(5)}, {stop.longitude.toFixed(5)}</span>
                     )}
                   </div>
-                  <button onClick={() => removeStop(index)} aria-label={`Remove stop ${stop.name}`} className="text-[#b4b2a9] dark:text-[#706f6a] cursor-pointer p-[2px] text-[15px]">✕</button>
+                  <button onClick={() => removeStop(index)} aria-label={`Remove stop ${stop.name}`} className="text-[var(--text-muted)] cursor-pointer p-[2px] text-[15px]">✕</button>
                 </div>
                 {stop.description && (
-                  <div className="px-[10px] pb-[10px] text-[12px] text-[#5f5e5a] dark:text-[#a8a7a0] border-t border-black/10 dark:border-white/9 pt-2">
+                  <div className="px-[10px] pb-[10px] text-[12px] text-[var(--text-secondary)] border-t border-[var(--border-color)] pt-2">
                     {stop.description}
                   </div>
                 )}
@@ -316,7 +316,7 @@ export default function CreatePage() {
               onKeyDown={(e) => e.key === 'Enter' && addStop()}
               placeholder="Place or curiosity name"
               aria-label="Place or curiosity name"
-              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
             <button onClick={addStop} aria-label="Add stop" className="px-3.5 py-[9px] rounded-lg bg-[var(--color-primary)] text-white border-none cursor-pointer text-[13px] font-bold whitespace-nowrap">
               + Add
@@ -336,7 +336,7 @@ export default function CreatePage() {
 
         {/* Duration & Distance */}
         <div className="flex flex-col gap-[5px]">
-          <label className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Duration & distance</label>
+          <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Duration & distance</label>
           <div className="flex gap-[7px]">
             <label htmlFor="guide-duration" className="sr-only">Duration</label>
             <input
@@ -346,7 +346,7 @@ export default function CreatePage() {
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 1h 30m"
               aria-label="Duration"
-              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
             <label htmlFor="guide-distance" className="sr-only">Distance</label>
             <input
@@ -356,14 +356,14 @@ export default function CreatePage() {
               onChange={(e) => setDistance(e.target.value)}
               placeholder="e.g. 2.5km"
               aria-label="Distance"
-              className="flex-1 bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
           </div>
         </div>
 
         {/* Costs */}
         <div className="flex flex-col gap-[5px]">
-          <label className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Estimated costs (€)</label>
+          <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Estimated costs (€)</label>
           <div className="grid grid-cols-3 gap-[7px]">
             <label htmlFor="ticket-cost" className="sr-only">Tickets cost</label>
             <input
@@ -373,7 +373,7 @@ export default function CreatePage() {
               onChange={(e) => setTicketCost(e.target.value)}
               placeholder="🎟 Tickets"
               aria-label="Tickets cost"
-              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+              className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
             <label htmlFor="meal-cost" className="sr-only">Meals cost</label>
             <input
@@ -383,7 +383,7 @@ export default function CreatePage() {
               onChange={(e) => setMealCost(e.target.value)}
               placeholder="🍽 Meals"
               aria-label="Meals cost"
-              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+              className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
             <label htmlFor="transport-cost" className="sr-only">Transport cost</label>
             <input
@@ -393,14 +393,14 @@ export default function CreatePage() {
               onChange={(e) => setTransportCost(e.target.value)}
               placeholder="🚌 Transport"
               aria-label="Transport cost"
-              className="bg-white dark:bg-[#1e1e1c] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[#f5f5f3] outline-none focus:border-[var(--color-primary)]"
+              className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
           </div>
         </div>
 
         {/* Access Model */}
         <div className="flex flex-col gap-[5px]">
-          <label id="access-model-label" className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Access model</label>
+          <label id="access-model-label" className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Access model</label>
           <div className="flex gap-[7px]" role="radiogroup" aria-labelledby="access-model-label">
             {accessModels.map((model) => (
               <button
@@ -411,7 +411,7 @@ export default function CreatePage() {
                 className={`flex-1 py-[9px] rounded-lg border text-[12px] font-bold cursor-pointer ${
                   accessModel === model
                     ? 'border-[var(--color-primary)] text-[var(--color-primary)] bg-[#E1F5EE]'
-                    : 'border-black/20 dark:border-white/18 bg-white dark:bg-[#1e1e1c] text-[#5f5e5a] dark:text-[#a8a7a0]'
+                    : 'border-black/20 dark:border-white/18 bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                 }`}
               >
                 {model === 'free' ? 'Free' : model === 'paid' ? '€0.99 unlock' : 'Watch ad'}
@@ -422,7 +422,7 @@ export default function CreatePage() {
 
         {/* Time slots */}
         <div className="flex flex-col gap-[5px]">
-          <div className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">Best time to visit <span className="normal-case font-normal">(optional)</span></div>
+          <div className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Best time to visit <span className="normal-case font-normal">(optional)</span></div>
           <div className="flex gap-[7px] flex-wrap">
             {(['morning', 'afternoon', 'evening', 'night'] as const).map((slot) => {
               const active = timeSlots.includes(slot)
@@ -435,7 +435,7 @@ export default function CreatePage() {
                   className={`px-3 py-[9px] rounded-lg border text-[12px] font-bold cursor-pointer ${
                     active
                       ? 'border-[#7B61FF] text-white bg-[#7B61FF]'
-                      : 'border-black/20 dark:border-white/18 bg-white dark:bg-[#1e1e1c] text-[#5f5e5a] dark:text-[#a8a7a0]'
+                      : 'border-black/20 dark:border-white/18 bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                   }`}
                 >
                   {{ morning: '🌅 Morning', afternoon: '☀️ Afternoon', evening: '🌇 Evening', night: '🌙 Night' }[slot]}
@@ -443,7 +443,7 @@ export default function CreatePage() {
               )
             })}
           </div>
-          <div className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a]">Leave empty for anytime</div>
+          <div className="text-[11px] text-[var(--text-muted)]">Leave empty for anytime</div>
         </div>
 
         {/* Limited-time event */}
@@ -455,25 +455,25 @@ export default function CreatePage() {
               onChange={(e) => setLimitedEvent(e.target.checked)}
               className="accent-[var(--color-primary)] w-4 h-4"
             />
-            <span className="text-[11px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase tracking-wider">⏱ Limited-time event</span>
+            <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">⏱ Limited-time event</span>
           </label>
-          <div className="text-[11px] text-[#b4b2a9] dark:text-[#706f6a] -mt-1">Show this guide only between two dates</div>
+          <div className="text-[11px] text-[var(--text-muted)] -mt-1">Show this guide only between two dates</div>
           {limitedEvent && (
-            <div className="flex flex-col gap-[9px] p-3 rounded-xl border border-black/10 dark:border-white/9 bg-[#f5f5f3] dark:bg-[#272725]">
+            <div className="flex flex-col gap-[9px] p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-tertiary)]">
               <div className="flex gap-[7px]">
                 <div className="flex-1 flex flex-col gap-[3px]">
-                  <label htmlFor="valid-from" className="text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase">Starts</label>
+                  <label htmlFor="valid-from" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Starts</label>
                   <input id="valid-from" type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-[#1e1e1c] text-[13px] text-[#F27732] dark:text-[#f5f5f3]" />
+                    className="w-full px-2.5 py-2 rounded-lg border border-black/15 dark:border-white/15 bg-[var(--bg-secondary)] text-[13px] text-[#F27732] dark:text-[var(--text-primary)]" />
                 </div>
                 <div className="flex-1 flex flex-col gap-[3px]">
-                  <label htmlFor="valid-until" className="text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase">Ends</label>
+                  <label htmlFor="valid-until" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Ends</label>
                   <input id="valid-until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-[#1e1e1c] text-[13px] text-[#F27732] dark:text-[#f5f5f3]" />
+                    className="w-full px-2.5 py-2 rounded-lg border border-black/15 dark:border-white/15 bg-[var(--bg-secondary)] text-[13px] text-[#F27732] dark:text-[var(--text-primary)]" />
                 </div>
               </div>
               <div className="flex flex-col gap-[5px]">
-                <div className="text-[10px] font-bold text-[#5f5e5a] dark:text-[#a8a7a0] uppercase">🔁 Repeat on</div>
+                <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">🔁 Repeat on</div>
                 <div className="flex gap-[5px] flex-wrap">
                   {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d, i) => {
                     const active = recurDays.includes(i)
@@ -484,7 +484,7 @@ export default function CreatePage() {
                         aria-pressed={active}
                         onClick={() => setRecurDays((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i].sort())}
                         className={`w-9 h-9 rounded-lg border text-[11px] font-bold cursor-pointer ${
-                          active ? 'border-[#378ADD] text-white bg-[#378ADD]' : 'border-black/20 dark:border-white/18 bg-white dark:bg-[#1e1e1c] text-[#5f5e5a] dark:text-[#a8a7a0]'
+                          active ? 'border-[#378ADD] text-white bg-[#378ADD]' : 'border-black/20 dark:border-white/18 bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                         }`}
                       >
                         {d}
@@ -499,7 +499,7 @@ export default function CreatePage() {
       </div>
 
       {/* Publish Button */}
-      <div className="px-4 py-3 bg-white dark:bg-[#1e1e1c] border-t border-black/10 dark:border-white/9 shrink-0">
+      <div className="px-4 py-3 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] shrink-0">
         {importError && (
           <div role="alert" className="mb-2 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center">
             {importError}

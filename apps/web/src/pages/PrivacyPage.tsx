@@ -11,18 +11,18 @@ export default function PrivacyPage() {
       />
       <nav className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/5">
         <Link to="/" className="text-lg font-bold text-[var(--color-primary)] no-underline">
-          Curio<span className="text-[#F27732] dark:text-[#f5f5f3]">City</span>
+          Curio<span className="text-[#F27732] dark:text-[var(--text-primary)]">City</span>
         </Link>
-        <Link to="/" className="text-sm text-[#5f5e5a] dark:text-[#a8a7a0] no-underline hover:text-[var(--color-primary)]">Back to home</Link>
+        <Link to="/" className="text-sm text-[var(--text-secondary)] no-underline hover:text-[var(--color-primary)]">Back to home</Link>
       </nav>
 
       <main className="max-w-2xl mx-auto px-6 py-10">
-        <h1 className="text-3xl font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">Privacy Policy</h1>
-        <p className="text-sm text-[#b4b2a9] dark:text-[#706f6a] mb-8">Last updated: October 2026</p>
+        <h1 className="text-3xl font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">Privacy Policy</h1>
+        <p className="text-sm text-[var(--text-muted)] mb-8">Last updated: October 2026</p>
 
-        <div className="prose-custom space-y-6 text-sm text-[#5f5e5a] dark:text-[#a8a7a0] leading-relaxed">
+        <div className="prose-custom space-y-6 text-sm text-[var(--text-secondary)] leading-relaxed">
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">1. What we collect</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">1. What we collect</h2>
             <p>CurioCity collects the following data:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li><strong>Account data:</strong> email address, display name, and password (stored only as a salted hash).</li>
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">2. How we use your data</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">2. How we use your data</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>To provide the service: showing your guides, saving favorites, offline downloads.</li>
               <li>To send transactional email: verification, password resets, purchase receipts.</li>
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">3. Third-party services</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">3. Third-party services</h2>
             <p>We rely on these processors, each with its own privacy policy:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li><strong>Stripe</strong> — payments and creator payouts.</li>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">4. Your rights (GDPR)</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">4. Your rights (GDPR)</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li><strong>Access:</strong> request a copy of your data from your profile page.</li>
               <li><strong>Deletion:</strong> delete your account and all associated content from your profile settings, or by emailing us.</li>
@@ -65,23 +65,23 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">5. Data retention</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">5. Data retention</h2>
             <p>Account data is kept until you delete your account. Payment records are retained for 10 years as required by EU tax law. Server logs are rotated every 30 days.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">6. Children</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">6. Children</h2>
             <p>CurioCity is not directed at children under 16, and we do not knowingly collect data from them.</p>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-[#F27732] dark:text-[#f5f5f3] mb-2">7. Changes & contact</h2>
+            <h2 className="text-lg font-bold text-[#F27732] dark:text-[var(--text-primary)] mb-2">7. Changes & contact</h2>
             <p>We will notify you of material changes via email. Questions about this policy: <a href="mailto:privacy@curiocity.app" className="text-[var(--color-primary)] underline">privacy@curiocity.app</a></p>
           </section>
         </div>
       </main>
 
-      <footer className="px-6 py-8 border-t border-black/5 text-center text-xs text-[#b4b2a9] dark:text-[#706f6a]">
+      <footer className="px-6 py-8 border-t border-black/5 text-center text-xs text-[var(--text-muted)]">
         CurioCity &copy; {new Date().getFullYear()} — <Link to="/terms" className="underline">Terms</Link>
       </footer>
     </div>
