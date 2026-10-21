@@ -7,6 +7,7 @@ import { users, payments } from '../services/api'
 import { getAllOfflineGuides, deleteOfflineGuide } from '../utils/offlineStorage'
 import { getAllImportedLocations, importLocations, deleteImportedLocation, clearImportedLocations } from '../utils/importedLocations'
 import { parseGpsFile } from '../utils/gpsParsers'
+import TicketGuideCard from '../components/TicketGuideCard'
 import type { Guide } from '../types'
 import type { ImportedLocation } from '../utils/importedLocations'
 
@@ -229,7 +230,7 @@ export default function ProfilePage() {
               <div className="text-center py-12 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('profile.noSaved')}</div>
             ) : (
               savedGuides.map((guide) => (
-                <MiniGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
+                <TicketGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
               ))
             )
           ) : activeTab === 'created' ? (
@@ -237,7 +238,7 @@ export default function ProfilePage() {
               <div className="text-center py-12 text-sm" style={{ color: 'var(--text-secondary)' }}>{t('profile.noCreated')}</div>
             ) : (
               createdGuides.map((guide) => (
-                <MiniGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
+                <TicketGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
               ))
             )
           ) : activeTab === 'downloaded' ? (
@@ -248,8 +249,8 @@ export default function ProfilePage() {
               </div>
             ) : (
               downloadedGuides.map((guide) => (
-                <MiniGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} actions={
-                  <button onClick={(e) => { e.stopPropagation(); handleRemoveDownload(guide.id) }} className="hover:opacity-70 cursor-pointer p-1 text-[11px]" style={{ color: 'var(--text-muted)' }} aria-label="Remove from offline">✕</button>
+                <TicketGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} actions={
+                  <button onClick={(e) => { e.stopPropagation(); handleRemoveDownload(guide.id) }} className="hover:opacity-70 cursor-pointer p-1 text-[13px] w-7 h-7 rounded-full bg-black/40 text-white backdrop-blur-sm" style={{}} aria-label="Remove from offline">✕</button>
                 } />
               ))
             )
@@ -289,27 +290,6 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-function MiniGuideCard({ guide, onClick, actions }: { guide: Guide; onClick: () => void; actions?: React.ReactNode }) {
-  return (
-    <div className="border rounded-lg p-[11px] flex gap-[9px] items-center cursor-pointer hover:opacity-90 transition-opacity" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} onClick={onClick}>
-      <div className="w-[50px] h-[44px] rounded-lg flex-shrink-0 overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-        {guide.coverImage ? (
-          <img src={guide.coverImage} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-xs" style={{ color: 'var(--text-muted)' }}>
-            {guide.city?.charAt(0) || '?'}
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>{guide.title}</div>
-          <div className="text-[12px] mt-[1px]" style={{ color: 'var(--text-secondary)' }}>{guide.city}</div>
-      </div>
-      {actions}
     </div>
   )
 }

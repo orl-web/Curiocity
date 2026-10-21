@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { config } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { authenticate, optionalAuth } from './middleware/auth';
@@ -34,6 +35,10 @@ app.use(cors({
   origin: config.CORS_ORIGIN.split(','),
   credentials: true,
 }));
+
+// Uploaded guide cover images. Served outside /api so list requests and image
+// loads don't share one rate-limit budget.
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), { maxAge: '7d', immutable: true }));
 
 // Stripe webhooks need the raw body — register BEFORE express.json()
 app.use('/api/webhooks', express.raw({ type: 'application/json' }));
@@ -89,6 +94,14 @@ const paymentLimiter = rateLimit({
   message: { error: 'Too many payment attempts. Try again later.' },
 });
 app.use('/api/payments', paymentLimiter);
+
+// Image uploads hit disk; keep a tighter budget than the general limiter.
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { error: 'Too many uploads. Try again later.' },
+});
+app.use('/api/upload/local', (req, res, next) => req.method === 'POST' ? uploadLimiter(req, res, next) : next());
 
 app.get('/health', async (req: Request, res: Response) => {
   try {

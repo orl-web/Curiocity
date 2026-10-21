@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { users } from '../services/api'
 import SEO from '../components/SEO'
+import TicketGuideCard from '../components/TicketGuideCard'
 import type { Guide } from '../types'
 
 interface CreatorProfile {
@@ -175,34 +176,11 @@ export default function CreatorPage() {
             <div className="text-center py-12 text-[var(--text-secondary)] text-sm">No published guides yet</div>
           ) : (
             profile.recentGuides.map((guide) => (
-              <MiniGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
+              <TicketGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
             ))
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-function MiniGuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
-  return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-[11px] flex gap-[9px] items-center cursor-pointer hover:border-[var(--color-primary)] transition-colors" onClick={onClick}>
-      <div className="w-[50px] h-[44px] rounded-lg bg-[var(--bg-tertiary)] flex-shrink-0 overflow-hidden">
-        {guide.coverImage || guide.coverImageUrl ? (
-          <img src={guide.coverImage || guide.coverImageUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
-            {guide.city?.charAt(0) || '?'}
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-bold truncate">{guide.title}</div>
-          <div className="text-[12px] text-[var(--text-secondary)] mt-[1px]">{guide.city}</div>
-      </div>
-      {Number(guide.rating) > 0 && (
-        <div className="text-[11px] text-[#BA7517] shrink-0">{Number(guide.rating).toFixed(1)}★</div>
-      )}
     </div>
   )
 }

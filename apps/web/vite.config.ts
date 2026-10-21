@@ -53,6 +53,10 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   // `vite preview` serves the production build, which is the only way to get a
@@ -66,6 +70,10 @@ export default defineConfig({
     allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },

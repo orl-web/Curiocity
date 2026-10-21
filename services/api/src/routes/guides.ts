@@ -23,6 +23,10 @@ const createGuideSchema = z.object({
   title: z.string().min(1).max(200), city: z.string().min(1).max(100), category: categorySchema,
   duration: z.string().max(20).optional(), distance: z.string().max(20).optional(),
   priceModel: priceModelSchema.default('free'), description: z.string().optional(),
+  // Cover art for the ticket card: an uploaded /uploads path, an http(s) URL,
+  // or a guest's local data URL (converted on signup).
+  coverImageUrl: z.string().max(3_000_000).regex(/^(\/uploads\/|https?:\/\/|data:image\/(jpeg|png|webp);base64,)/, 'must be an uploaded file, http(s) URL, or image data URL').optional().or(z.literal('')),
+  stubImageUrl: z.string().max(3_000_000).regex(/^(\/uploads\/|https?:\/\/|data:image\/(jpeg|png|webp);base64,)/, 'must be an uploaded file, http(s) URL, or image data URL').optional().or(z.literal('')),
   timeSlots: z.array(timeSlotSchema).max(4).optional(),
   validFrom: z.string().datetime().optional().or(z.literal('')),
   validUntil: z.string().datetime().optional().or(z.literal('')),
@@ -63,7 +67,7 @@ router.get('/', validateQuery(querySchema), optionalAuth, async (req: Request, r
   // the argument past that, so clamp with least/greatest. round() only accepts numeric.
   const nearestStopKm = sql`6371 * acos(least(1, greatest(-1, cos(radians(${lat})) * cos(radians(gs.latitude)) * cos(radians(gs.longitude) - radians(${lng})) + sin(radians(${lat})) * sin(radians(gs.latitude)))))`;
   const haversineExpr = hasLocation ? sql<number>`round((SELECT min(${nearestStopKm}) from guide_stops gs where gs.guide_id = guides.id and gs.latitude is not null and gs.longitude is not null)::numeric, 2)::float8` : sql<number>`null`;
-  const selectFields: any = { id: guides.id, title: guides.title, city: guides.city, category: guides.category, creatorId: guides.creatorId, creatorInitials: guides.creatorInitials, creatorColor: guides.creatorColor, verified: guides.verified, duration: guides.duration, distance: guides.distance, priceModel: guides.priceModel, rating: guides.rating, description: guides.description, coverImageUrl: guides.coverImageUrl, isPublished: guides.isPublished, createdAt: guides.createdAt, timeSlots: guides.timeSlots, validFrom: guides.validFrom, validUntil: guides.validUntil, recurrence: guides.recurrence, mapCenterLat: guides.mapCenterLat, mapCenterLng: guides.mapCenterLng, creator: { id: users.id, displayName: users.displayName, initials: users.initials, avatarUrl: users.avatarUrl } };
+  const selectFields: any = { id: guides.id, title: guides.title, city: guides.city, category: guides.category, creatorId: guides.creatorId, creatorInitials: guides.creatorInitials, creatorColor: guides.creatorColor, verified: guides.verified, duration: guides.duration, distance: guides.distance, priceModel: guides.priceModel, price: guides.price, rating: guides.rating, description: guides.description, coverImageUrl: guides.coverImageUrl, stubImageUrl: guides.stubImageUrl, isPublished: guides.isPublished, createdAt: guides.createdAt, timeSlots: guides.timeSlots, validFrom: guides.validFrom, validUntil: guides.validUntil, recurrence: guides.recurrence, mapCenterLat: guides.mapCenterLat, mapCenterLng: guides.mapCenterLng, creator: { id: users.id, displayName: users.displayName, initials: users.initials, avatarUrl: users.avatarUrl } };
   if (hasLocation) selectFields.distance_km = haversineExpr;
   let baseQuery: any = db.select(selectFields).from(guides).leftJoin(users, eq(guides.creatorId, users.id));
 
@@ -188,7 +192,7 @@ router.post('/', authenticate, validateBody(createGuideSchema), async (req: Requ
   const guideId = uuidv4(); const now = new Date();
 
   await db.transaction(async (tx) => {
-    await tx.insert(guides).values({ id: guideId, title: data.title, city: data.city, category: data.category, creatorId: userId, creatorInitials: user.initials, creatorColor: user.role === 'creator' ? '#1D9E75' : '#888780', verified: user.role === 'creator' || user.role === 'admin', duration: data.duration, distance: data.distance, priceModel: data.priceModel, description: data.description, timeSlots: data.timeSlots && data.timeSlots.length > 0 ? data.timeSlots : null, validFrom: data.validFrom ? new Date(data.validFrom) : null, validUntil: data.validUntil ? new Date(data.validUntil) : null, recurrence: data.recurrence || null, isPublished: true, publishedAt: now });
+    await tx.insert(guides).values({ id: guideId, title: data.title, city: data.city, category: data.category, creatorId: userId, creatorInitials: user.initials, creatorColor: user.role === 'creator' ? '#1D9E75' : '#888780', verified: user.role === 'creator' || user.role === 'admin', duration: data.duration, distance: data.distance, priceModel: data.priceModel, description: data.description, coverImageUrl: data.coverImageUrl || null, stubImageUrl: data.stubImageUrl || null, timeSlots: data.timeSlots && data.timeSlots.length > 0 ? data.timeSlots : null, validFrom: data.validFrom ? new Date(data.validFrom) : null, validUntil: data.validUntil ? new Date(data.validUntil) : null, recurrence: data.recurrence || null, isPublished: true, publishedAt: now });
     for (let i = 0; i < data.stops.length; i++) {
       const stop = data.stops[i];
       let lat = stop.latitude, lng = stop.longitude;
@@ -226,6 +230,9 @@ router.patch('/:id', authenticate, validateParams(idParamSchema), validateBody(u
   const { stops, costs, nearby, resources, ...guideData } = data;
   if (guideData.validFrom !== undefined) guideData.validFrom = guideData.validFrom ? new Date(guideData.validFrom) : null;
   if (guideData.validUntil !== undefined) guideData.validUntil = guideData.validUntil ? new Date(guideData.validUntil) : null;
+  // Empty string means "remove the image" (the form clears by sending '').
+  if (guideData.coverImageUrl !== undefined) guideData.coverImageUrl = guideData.coverImageUrl || null;
+  if (guideData.stubImageUrl !== undefined) guideData.stubImageUrl = guideData.stubImageUrl || null;
   if (guideData.timeSlots !== undefined && Array.isArray(guideData.timeSlots) && guideData.timeSlots.length === 0) guideData.timeSlots = null;
   if (guideData.recurrence !== undefined && guideData.recurrence && (!guideData.recurrence.daysOfWeek?.length || !guideData.recurrence.slots?.length)) guideData.recurrence = null;
   await db.update(guides).set({ ...guideData, updatedAt: new Date() }).where(eq(guides.id, id));

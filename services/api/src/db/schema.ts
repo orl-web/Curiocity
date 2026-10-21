@@ -43,6 +43,7 @@ export const guides = pgTable('guides', {
   rating: decimal('rating', { precision: 2, scale: 1 }).default('5.0').notNull(),
   description: text('description'),
   coverImageUrl: varchar('cover_image_url', { length: 500 }),
+  stubImageUrl: varchar('stub_image_url', { length: 500 }),
   mapCenterLat: decimal('map_center_lat', { precision: 10, scale: 7 }),
   mapCenterLng: decimal('map_center_lng', { precision: 10, scale: 7 }),
   mapZoom: integer('map_zoom').default(13),

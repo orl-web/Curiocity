@@ -4,6 +4,7 @@ import { users } from '../services/api'
 import SEO from '../components/SEO'
 import { GuideSkeletonList } from '../components/Skeleton'
 import { classifyApiError } from '../utils/apiError'
+import TicketGuideCard from '../components/TicketGuideCard'
 import type { Guide } from '../types'
 
 export default function FollowingPage() {
@@ -60,75 +61,9 @@ export default function FollowingPage() {
           </div>
         ) : (
           guides.map((guide) => (
-            <GuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
+            <TicketGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
           ))
         )}
-      </div>
-    </div>
-  )
-}
-
-function GuideCard({ guide, onClick }: { guide: Guide; onClick: () => void }) {
-  const categoryColors: Record<string, string> = {
-    food: 'bg-[#E1F5EE] text-[#085041]',
-    architecture: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-    history: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-    art: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-    nature: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-  }
-
-  return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] transition-colors" onClick={onClick}>
-      <div className="p-3">
-        <div className="flex gap-[11px]">
-          <div className="w-[86px] h-[76px] rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex-shrink-0 overflow-hidden">
-            {guide.coverImage || guide.coverImageUrl ? (
-              <img src={guide.coverImage || guide.coverImageUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">
-                {guide.city?.charAt(0) || '?'}
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-bold leading-[1.3] mb-1 line-clamp-2">{guide.title}</div>
-            <div className="flex items-center gap-[5px] mb-[5px]">
-              <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: 'var(--color-primary)' }}>
-                {guide.user?.displayName?.charAt(0) || '?'}
-              </div>
-              <span className="text-[12px] text-[var(--text-secondary)] truncate">{guide.user?.displayName || 'Creator'}</span>
-            </div>
-            <div className="flex flex-wrap gap-[5px]">
-              <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'}`}>
-                {guide.category}
-              </span>
-              {guide.priceModel === 'free' && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#E1F5EE] text-[#085041]">Free</span>
-              )}
-              {guide.priceModel === 'paid' && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#BA7517]/10 text-[#BA7517]">€0.99</span>
-              )}
-            </div>
-            {Number(guide.rating) > 0 && (
-              <div className="text-[11px] text-[#BA7517] mt-1">{Number(guide.rating).toFixed(1)}★</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="px-3 py-2 border-t border-[var(--border-color)] flex items-center justify-between">
-        <span className="text-[12px] font-bold">
-          {guide.priceModel === 'free' ? (
-            <span className="text-[var(--color-primary)]">Free</span>
-          ) : guide.priceModel === 'paid' ? (
-            <span className="text-[#BA7517]">€0.99</span>
-          ) : (
-            <span className="text-[var(--text-secondary)]">Watch ad</span>
-          )}
-        </span>
-        <span className="text-[12px] text-[var(--text-muted)]">
-          {guide.distance_km != null && <span className="text-[var(--color-primary)] font-bold mr-2">{guide.distance_km} km</span>}
-          {guide.city}
-        </span>
       </div>
     </div>
   )

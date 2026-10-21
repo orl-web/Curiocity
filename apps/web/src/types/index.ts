@@ -24,6 +24,8 @@ export interface GuideRecurrence {
 export interface Guide {
   id: string
   creatorId: string
+  creatorInitials?: string
+  creatorColor?: string
   title: string
   city: string
   country?: string
@@ -31,6 +33,7 @@ export interface Guide {
   teaser?: string
   coverImage?: string
   coverImageUrl?: string
+  stubImageUrl?: string
   category: string
   tags?: string[]
   duration?: string
@@ -39,6 +42,7 @@ export interface Guide {
   rating: number
   reviewCount?: number
   bayesianRating?: number
+  stopsCount?: number
   isPublished: boolean
   createdAt: string
   updatedAt?: string
@@ -50,6 +54,7 @@ export interface Guide {
   mapCenterLat?: number | string | null
   mapCenterLng?: number | string | null
   user?: User
+  creator?: { id: string; displayName: string; initials?: string; avatarUrl?: string }
   stops?: GuideStop[]
   costs?: GuideCost[]
   nearby?: GuideNearby[]

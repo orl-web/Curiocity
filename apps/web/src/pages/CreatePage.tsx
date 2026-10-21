@@ -5,13 +5,15 @@ import { parseGpsFile } from '../utils/gpsParsers'
 import { parseDescriptionFile } from '../utils/fileParser'
 import { useAuth } from '../hooks/useAuth'
 import { saveGuestDraft, getLatestGuestDraft } from '../utils/guestDrafts'
+import { resizeImageToDataUrl, uploadLocalImage } from '../utils/imageUpload'
+import TicketGuideCard from '../components/TicketGuideCard'
 
 const categories = ['Food', 'Architecture', 'History', 'Art', 'Nature', 'Characters']
 const accessModels = ['free', 'paid', 'ad'] as const
 
 export default function CreatePage() {
   const navigate = useNavigate()
-  const { isGuest } = useAuth()
+  const { isGuest, user } = useAuth()
   const [title, setTitle] = useState('')
   const [city, setCity] = useState('')
   const [category, setCategory] = useState('')
@@ -38,6 +40,14 @@ export default function CreatePage() {
   const [gpsImportCount, setGpsImportCount] = useState(0)
   const gpsInputRef = useRef<HTMLInputElement>(null)
   const descInputRef = useRef<HTMLInputElement>(null)
+  // Optional ticket + stub background photos. Guests keep a local data URL in
+  // their draft; signed-in users upload immediately.
+  const [coverImageUrl, setCoverImageUrl] = useState('')
+  const [stubImageUrl, setStubImageUrl] = useState('')
+  const [isUploadingCover, setIsUploadingCover] = useState(false)
+  const [isUploadingStub, setIsUploadingStub] = useState(false)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+  const stubInputRef = useRef<HTMLInputElement>(null)
   // Signed-out visitors do not publish to the server; their work is stored on
   // the device and uploaded by useAuth once they create an account.
   const [draftSaved, setDraftSaved] = useState(false)
@@ -55,6 +65,8 @@ export default function CreatePage() {
       setDistance(draft.distance || '')
       setAccessModel((draft.priceModel as 'free' | 'paid' | 'ad') || 'free')
       setTimeSlots(draft.timeSlots || [])
+      setCoverImageUrl(draft.coverImageUrl || '')
+      setStubImageUrl(draft.stubImageUrl || '')
       setStops((draft.stops || []).map((s) => ({ name: s.name, description: s.description || '', latitude: s.latitude ?? undefined, longitude: s.longitude ?? undefined })))
     }).catch(() => {})
     return () => { cancelled = true }
@@ -64,6 +76,31 @@ export default function CreatePage() {
     if (newStop.trim()) {
       setStops([...stops, { name: newStop.trim(), description: '' }])
       setNewStop('')
+    }
+  }
+
+  const handleArtPick = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    kind: 'cover' | 'stub',
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const setInput = kind === 'cover' ? setCoverImageUrl : setStubImageUrl
+    const setUploading = kind === 'cover' ? setIsUploadingCover : setIsUploadingStub
+    setUploading(true)
+    try {
+      const dataUrl = await resizeImageToDataUrl(file)
+      if (isGuest) {
+        // Keep the resized data URL; uploadGuestDrafts converts it on signup.
+        setInput(dataUrl)
+      } else {
+        setInput(await uploadLocalImage(dataUrl, 'guides'))
+      }
+    } catch {
+      // Leave the previous selection in place on failure.
+    } finally {
+      setUploading(false)
+      if (e.target) e.target.value = ''
     }
   }
 
@@ -175,6 +212,8 @@ export default function CreatePage() {
         duration,
         distance,
         priceModel: accessModel,
+        coverImageUrl: coverImageUrl || undefined,
+        stubImageUrl: stubImageUrl || undefined,
         timeSlots: timeSlots.length > 0 ? timeSlots : undefined,
         validFrom: limitedEvent && validFrom ? new Date(validFrom).toISOString() : undefined,
         validUntil: limitedEvent && validUntil ? new Date(validUntil).toISOString() : undefined,
@@ -310,6 +349,99 @@ export default function CreatePage() {
             placeholder="What will travellers discover? Paste or import from .txt, .md, .docx files"
             className="bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] w-full min-h-[68px] resize-none"
           />
+        </div>
+
+        {/* Cover artwork */}
+        <div className="flex flex-col gap-[7px]">
+          <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Cover artwork <span className="normal-case font-medium opacity-70">(optional)</span></label>
+          <div className="flex gap-[10px]">
+            {/* Ticket photo picker + live preview */}
+            <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+              <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => handleArtPick(e, 'cover')} className="hidden" />
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={isUploadingCover}
+                className="relative w-full aspect-[4/3] rounded-xl border border-dashed border-black/25 dark:border-white/25 bg-[var(--bg-secondary)] overflow-hidden cursor-pointer hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1 disabled:opacity-60"
+              >
+                {coverImageUrl ? (
+                  <img src={coverImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <span className="text-xl" aria-hidden="true">🖼</span>
+                    <span className="text-[11px] font-bold text-[var(--text-secondary)]">{isUploadingCover ? 'Uploading…' : '📷 Ticket photo'}</span>
+                  </>
+                )}
+                {coverImageUrl && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Remove ticket photo"
+                    onClick={(e) => { e.stopPropagation(); setCoverImageUrl('') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCoverImageUrl('') } }}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/55 text-white text-[12px] flex items-center justify-center cursor-pointer"
+                  >✕</span>
+                )}
+              </button>
+              <span className="text-[10px] text-[var(--text-muted)] text-center">Ticket background</span>
+            </div>
+            {/* Stub photo picker + live preview */}
+            <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+              <input ref={stubInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => handleArtPick(e, 'stub')} className="hidden" />
+              <button
+                type="button"
+                onClick={() => stubInputRef.current?.click()}
+                disabled={isUploadingStub}
+                className="relative w-full aspect-[4/3] rounded-xl border border-dashed border-black/25 dark:border-white/25 bg-[var(--bg-secondary)] overflow-hidden cursor-pointer hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1 disabled:opacity-60"
+              >
+                {stubImageUrl ? (
+                  <img src={stubImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <span className="text-xl" aria-hidden="true">🎟</span>
+                    <span className="text-[11px] font-bold text-[var(--text-secondary)]">{isUploadingStub ? 'Uploading…' : '📷 Stub photo'}</span>
+                  </>
+                )}
+                {stubImageUrl && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Remove stub photo"
+                    onClick={(e) => { e.stopPropagation(); setStubImageUrl('') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStubImageUrl('') } }}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/55 text-white text-[12px] flex items-center justify-center cursor-pointer"
+                  >✕</span>
+                )}
+              </button>
+              <span className="text-[10px] text-[var(--text-muted)] text-center">Stub background</span>
+            </div>
+          </div>
+          {/* Live card preview so the creator sees exactly what travellers get */}
+          {(() => {
+            const preview = {
+              id: 'preview',
+              creatorId: 'preview',
+              title: title || 'Your guide title',
+              city: city || 'City',
+              category: (category || 'general').toLowerCase(),
+              coverImageUrl: coverImageUrl || undefined,
+              stubImageUrl: stubImageUrl || undefined,
+              priceModel: accessModel,
+              rating: 0,
+              duration: duration || undefined,
+              distance: distance || undefined,
+              timeSlots: timeSlots.length > 0 ? (timeSlots as never) : null,
+              stops: stops.map((s, i) => ({ id: String(i), guideId: 'preview', name: s.name, description: '', orderIndex: i })),
+              creator: { id: 'preview', displayName: user?.displayName || 'You' },
+              isPublished: false,
+              createdAt: new Date().toISOString(),
+            }
+            return (
+              <div className="mt-1">
+                <TicketGuideCard guide={preview as never} onClick={() => {}} />
+              </div>
+            )
+          })()}
         </div>
 
         {/* Stops */}

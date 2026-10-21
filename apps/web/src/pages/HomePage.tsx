@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { guides, getCancelToken } from '../services/api'
 import SEO from '../components/SEO'
@@ -6,6 +6,7 @@ import { GuideSkeletonList } from '../components/Skeleton'
 import { useI18n } from '../i18n'
 import { classifyApiError, type ApiFailure } from '../utils/apiError'
 import { getAllOfflineGuides } from '../utils/offlineStorage'
+import TicketGuideCard from '../components/TicketGuideCard'
 import type { Guide, GuideFilters, TimeSlot } from '../types'
 
 const TIME_SLOTS: TimeSlot[] = ['morning', 'afternoon', 'evening', 'night']
@@ -344,156 +345,10 @@ export default function HomePage() {
             )}
           </div>
         ) : (
-          (guidesList || []).map((guide, index) => (
-            <GuideCard key={guide.id} guide={guide} index={index} onClick={() => navigate(`/guide/${guide.id}`)} />
+          (guidesList || []).map((guide) => (
+            <TicketGuideCard key={guide.id} guide={guide} onClick={() => navigate(`/guide/${guide.id}`)} />
           ))
         )}
-      </div>
-    </div>
-  )
-}
-
-function hashCode(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash |= 0
-  }
-  return Math.abs(hash)
-}
-
-const placeholderColors = [
-  ['#1D9E75', '#158563'], ['#E24B4A', '#c43c3c'], ['#BA7517', '#9a6114'],
-  ['#378ADD', '#2d73b8'], ['#8B5CF6', '#7340d9'], ['#EC4899', '#d63384'],
-  ['#F59E0B', '#d97706'], ['#06B6D4', '#0891b2'],
-]
-
-const categoryIcons: Record<string, string> = {
-  food: '🍽', architecture: '🏛', history: '📜', art: '🎨', nature: '🌿', characters: '🧑', general: '📍',
-}
-
-const categoryColors: Record<string, string> = {
-  food: 'bg-[#E1F5EE] text-[#085041]',
-  architecture: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-  history: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-  art: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-  nature: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-  characters: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-  general: 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-black/10',
-}
-
-function GuideCard({ guide, onClick, index }: { guide: Guide; onClick: () => void; index: number }) {
-  const hash = hashCode(guide.id + guide.title)
-  const [bg, accent] = placeholderColors[hash % placeholderColors.length]
-  const icon = categoryIcons[guide.category] || '📍'
-  const isFirstTwo = index < 2
-
-  const mapSvg = useMemo(() => {
-    if (!isFirstTwo) return null
-    const stops = guide.stops || []
-    const valid = stops.filter(s => s.latitude && s.longitude)
-    if (valid.length === 0) return null
-    const lats = valid.map(s => Number(s.latitude))
-    const lngs = valid.map(s => Number(s.longitude))
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
-    const pad = 0.005
-    const w = 176, h = 140
-    const toX = (lng: number) => ((lng - (minLng - pad)) / ((maxLng + pad) - (minLng - pad))) * w
-    const toY = (lat: number) => h - ((lat - (minLat - pad)) / ((maxLat + pad) - (minLat - pad))) * h
-    const points = valid.map((s, i) => {
-      const x = toX(Number(s.longitude))
-      const y = toY(Number(s.latitude))
-      return `<circle cx="${x}" cy="${y}" r="8" fill="${i === 0 ? '#E24B4A' : '#1D9E75'}" stroke="white" stroke-width="2"/>` +
-        `<text x="${x}" y="${y + 4}" text-anchor="middle" fill="white" font-size="8" font-weight="700">${i + 1}</text>`
-    }).join('')
-    const pathD = valid.map((s, i) => `${i === 0 ? 'M' : 'L'}${toX(Number(s.longitude))},${toY(Number(s.latitude))}`).join(' ')
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
-      `<rect width="${w}" height="${h}" fill="#E8F5E9" rx="8"/>` +
-      `<path d="${pathD}" fill="none" stroke="#1D9E75" stroke-width="2" stroke-dasharray="4,3" opacity="0.6"/>` +
-      points + `</svg>`
-  }, [guide, isFirstTwo])
-
-  return (
-    <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden cursor-pointer hover:border-[var(--color-primary)] active:scale-[0.98] transition-all" onClick={onClick}>
-      <div className="p-3">
-        <div className="flex gap-[11px]">
-          <div className="w-[86px] h-[76px] rounded-lg border border-[var(--border-color)] flex-shrink-0 overflow-hidden relative">
-            {isFirstTwo && mapSvg ? (
-              <div dangerouslySetInnerHTML={{ __html: mapSvg }} className="w-full h-full" />
-            ) : (guide as any).coverImageUrl || guide.coverImage ? (
-              <img src={(guide as any).coverImageUrl || guide.coverImage} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl" style={{ background: `linear-gradient(135deg, ${bg}, ${accent})` }}>
-                {icon}
-              </div>
-            )}
-            {/* Price badge bottom-left on miniature */}
-            {guide.priceModel !== 'free' && (
-              <div className="absolute bottom-1 left-1 px-1.5 py-[2px] rounded-[6px] text-[9px] font-bold bg-black/60 text-white backdrop-blur-sm">
-                {guide.priceModel === 'paid' ? '€0.99' : 'Ad'}
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-bold leading-[1.3] mb-1 line-clamp-2" style={{ fontFamily: 'var(--font-display)' }}>{guide.title}</div>
-            <div className="flex items-center gap-[5px] mb-[5px]">
-              <div className="w-[17px] h-[17px] rounded-full flex items-center justify-center text-[9px] text-white font-bold shrink-0" style={{ background: 'var(--color-primary)' }}>
-                {guide.user?.displayName?.charAt(0) || '?'}
-              </div>
-              <span className="text-[12px] text-[var(--text-secondary)] truncate">{guide.user?.displayName || 'Creator'}</span>
-            </div>
-            <div className="flex flex-wrap gap-[5px]">
-              <span className={`px-2 py-[3px] rounded-[10px] text-[11px] font-bold ${categoryColors[guide.category] || 'bg-[var(--bg-primary)] text-[var(--text-secondary)]'}`}>
-                {guide.category}
-              </span>
-              {guide.duration && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)]">
-                  ⏱ {guide.duration}
-                </span>
-              )}
-              {guide.distance && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)]">
-                  📏 {guide.distance}
-                </span>
-              )}
-              {guide.timeSlots && guide.timeSlots.length > 0 && guide.timeSlots.length < 4 && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#7B61FF]/10 text-[#7B61FF] border border-[#7B61FF]/20">
-                  {guide.timeSlots.map((s) => TIME_SLOT_EMOJI[s]).join(' ')}
-                </span>
-              )}
-              {guide.validUntil && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#E24B4A]/10 text-[#E24B4A] border border-[#E24B4A]/20">
-                  ⏱ Limited
-                </span>
-              )}
-              {guide.recurrence && (
-                <span className="px-2 py-[3px] rounded-[10px] text-[11px] font-bold bg-[#378ADD]/10 text-[#378ADD] border border-[#378ADD]/20">
-                  🔁
-                </span>
-              )}
-            </div>
-            {Number(guide.rating) > 0 && (
-              <div className="text-[11px] text-[#BA7517] mt-1">{Number(guide.rating).toFixed(1)}★</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="px-3 py-2 border-t border-[var(--border-color)] flex items-center justify-between">
-        <span className="text-[12px] font-bold">
-          {guide.priceModel === 'free' ? (
-            <span className="text-[var(--color-primary)]">Free</span>
-          ) : guide.priceModel === 'paid' ? (
-            <span className="text-[#BA7517]">€0.99</span>
-          ) : (
-            <span className="text-[var(--text-secondary)]">Watch ad</span>
-          )}
-        </span>
-        <span className="text-[12px] text-[var(--text-muted)]">
-          {guide.distance_km != null && <span className="text-[var(--color-primary)] font-bold mr-2">{guide.distance_km} km</span>}
-          {guide.city}
-        </span>
       </div>
     </div>
   )

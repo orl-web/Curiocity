@@ -51,6 +51,7 @@ async function migrate() {
       rating DECIMAL(2,1) DEFAULT '5.0' NOT NULL,
       description TEXT,
       cover_image_url VARCHAR(500),
+      stub_image_url VARCHAR(500),
       map_center_lat DECIMAL(10,7),
       map_center_lng DECIMAL(10,7),
       map_zoom INTEGER DEFAULT 13,
@@ -308,6 +309,7 @@ async function migrate() {
   await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS valid_from TIMESTAMPTZ`;
   await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS valid_until TIMESTAMPTZ`;
   await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS recurrence JSONB`;
+  await client`ALTER TABLE guides ADD COLUMN IF NOT EXISTS stub_image_url VARCHAR(500)`;
 
   await client`
     CREATE TABLE IF NOT EXISTS newsletter_subscribers (

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { User } from '../types'
 import { auth, guides } from '../services/api'
 import { getLatestGuestDraft, deleteGuestDraft, type GuestDraft } from '../utils/guestDrafts'
+import { uploadLocalImage } from '../utils/imageUpload'
 
 interface AuthContextType {
   user: User | null
@@ -27,6 +28,14 @@ async function uploadGuestDrafts(): Promise<{ published: number; failed: number 
   try {
     const { id, savedAt, ...payload } = draft as GuestDraft
     void id; void savedAt
+    // A guest's draft holds local data URLs for background photos; upload
+    // them first so the guide stores a stable /uploads path instead.
+    if (payload.coverImageUrl?.startsWith('data:')) {
+      payload.coverImageUrl = await uploadLocalImage(payload.coverImageUrl, 'guides')
+    }
+    if (payload.stubImageUrl?.startsWith('data:')) {
+      payload.stubImageUrl = await uploadLocalImage(payload.stubImageUrl, 'guides')
+    }
     await guides.create(payload as never)
     await deleteGuestDraft(draft.id)
     published++

@@ -11,6 +11,10 @@ export interface GuestDraft {
   duration?: string
   distance?: string
   priceModel: string
+  // Background photos. A guest holds a local data URL until signup, when
+  // useAuth uploads it and swaps in the /uploads URL.
+  coverImageUrl?: string
+  stubImageUrl?: string
   timeSlots?: string[]
   validFrom?: string
   validUntil?: string
