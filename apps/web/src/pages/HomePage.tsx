@@ -7,21 +7,11 @@ import { useI18n } from '../i18n'
 import { classifyApiError, type ApiFailure } from '../utils/apiError'
 import { getAllOfflineGuides } from '../utils/offlineStorage'
 import TicketGuideCard from '../components/TicketGuideCard'
+import { bandMeta, categoryMeta } from '../utils/guideArt'
 import type { Guide, GuideFilters, TimeSlot } from '../types'
 
 const TIME_SLOTS: TimeSlot[] = ['morning', 'afternoon', 'evening', 'night']
 const TIME_SLOT_EMOJI: Record<TimeSlot, string> = { morning: '🌅', afternoon: '☀️', evening: '🌇', night: '🌙' }
-
-const categories = [
-  { id: 'all', label: 'All' },
-  { id: 'food', label: '🍽 Food' },
-  { id: 'architecture', label: '🏛 Architecture' },
-  { id: 'history', label: '📜 History' },
-  { id: 'art', label: '🎨 Art' },
-  { id: 'nature', label: '🌿 Nature' },
-  { id: 'characters', label: '🧑 Characters' },
-  { id: 'free', label: 'Free' },
-]
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -224,68 +214,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Status Bar */}
-      <div className="px-4 py-[5px] bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] text-[11px] text-[var(--text-muted)] flex items-center gap-[5px] shrink-0" style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
-        <div className="w-[5px] h-[5px] rounded-full" style={{ background: 'var(--color-primary)' }}></div>
-        <span aria-live="polite">{guidesList?.length || 0} {t('home.guidesAvailable')}</span>
-      </div>
-
-      {/* Category Filter */}
-      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none' }}>
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
-              activeCategory === cat.id
-                ? 'font-bold text-white'
-                : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
-            }`}
-            style={activeCategory === cat.id ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
-          >
-            {cat.label}
-          </button>
-        ))}
-        <button
-          onClick={handleNearMe}
-          className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
-            nearMeActive
-              ? 'font-bold text-white'
-              : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
-          }`}
-          style={nearMeActive ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : undefined}
-        >
-          📍 Near Me
-        </button>
-      </div>
-
-      {/* Time-of-day filter */}
-      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2 flex gap-[6px] overflow-x-auto shrink-0" style={{ scrollbarWidth: 'none', background: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
-        <span className="shrink-0 self-center text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wide">{t('time.filter')}</span>
-        {TIME_SLOTS.map((slot) => (
-          <button
-            key={slot}
-            onClick={() => setTimeSlots((prev) => prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot])}
-            aria-pressed={timeSlots.includes(slot)}
-            className={`shrink-0 px-3 py-[5px] rounded-full border text-[12px] cursor-pointer whitespace-nowrap transition-all active:scale-95 ${
-              timeSlots.includes(slot)
-                ? 'bg-[#7B61FF] border-[#7B61FF] text-white font-bold'
-                : 'bg-[var(--bg-secondary)] border-black/20 dark:border-white/18 text-[var(--text-secondary)]'
-            }`}
-          >
-            {TIME_SLOT_EMOJI[slot]} {t(`time.${slot}` as any)}
-          </button>
-        ))}
-        {timeSlots.length > 0 && (
-          <button
-            onClick={() => setTimeSlots([])}
-            className="shrink-0 px-3 py-[5px] rounded-full border border-black/20 dark:border-white/18 text-[12px] cursor-pointer whitespace-nowrap bg-transparent text-[var(--text-secondary)]"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
       {locationError && (
         <div className="px-4 py-2 bg-[#FFF3CD] dark:bg-[#3d3522] border-b border-[#FFD43B]/30 text-[12px] text-[#664D03] dark:text-[#FFD43B] flex items-center gap-2 shrink-0">
           <span>{locationError}</span>
@@ -310,8 +238,90 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Feed */}
+      {/* Feed — filters live here so they scroll away; only the header sticks */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[11px] min-h-0">
+        {/* Count */}
+        <div className="px-1 text-[11px] text-[var(--text-muted)] flex items-center gap-[5px] shrink-0">
+          <div className="w-[5px] h-[5px] rounded-full" style={{ background: 'var(--color-primary)' }}></div>
+          <span aria-live="polite">{guidesList?.length || 0} {t('home.guidesAvailable')}</span>
+        </div>
+
+        {/* Time-of-day tiles — single-select, band gradients from the ticket art */}
+        <div className="grid grid-cols-4 gap-2 shrink-0">
+          {TIME_SLOTS.map((slot) => {
+            const meta = bandMeta(slot)
+            const active = timeSlots.length === 1 && timeSlots[0] === slot
+            return (
+              <button
+                key={slot}
+                onClick={() => setTimeSlots(active ? [] : [slot])}
+                aria-pressed={active}
+                className="rounded-2xl py-2.5 flex flex-col items-center gap-0.5 cursor-pointer transition-all active:scale-95 border-2"
+                style={{
+                  background: `linear-gradient(165deg, ${meta.gradient[0]}, ${meta.gradient[1]})`,
+                  color: meta.textColor,
+                  borderColor: active ? 'var(--text-primary)' : 'transparent',
+                  boxShadow: active ? '0 2px 10px rgba(0,0,0,.18)' : '0 1px 4px rgba(0,0,0,.08)',
+                }}
+              >
+                <span className="text-[19px] leading-none" aria-hidden="true">{TIME_SLOT_EMOJI[slot]}</span>
+                <span className="text-[10px] font-extrabold leading-none">{t(`time.${slot}` as any)}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Circular theme chips + Near Me + Free (mockup's th-row) */}
+        <div className="flex gap-2.5 overflow-x-auto pb-1 shrink-0" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={handleNearMe}
+            aria-pressed={nearMeActive}
+            className="shrink-0 flex flex-col items-center gap-1 cursor-pointer"
+          >
+            <span
+              className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-[17px] border-2 transition-all"
+              style={nearMeActive
+                ? { background: 'var(--color-primary)', borderColor: 'var(--color-primary)', color: '#fff' }
+                : { background: 'var(--bg-secondary)', borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+            >📍</span>
+            <span className="text-[9px] font-bold text-[var(--text-secondary)] leading-none">Near Me</span>
+          </button>
+          {['all', 'food', 'architecture', 'history', 'art', 'nature', 'characters'].map((cat) => {
+            const meta = cat === 'all' ? null : categoryMeta(cat)
+            const active = activeCategory === cat
+            const color = meta?.color || 'var(--color-primary)'
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                aria-pressed={active}
+                className="shrink-0 flex flex-col items-center gap-1 cursor-pointer"
+              >
+                <span
+                  className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-[17px] border-2 transition-all"
+                  style={active
+                    ? { background: color, borderColor: color, color: '#fff' }
+                    : { background: 'var(--bg-secondary)', borderColor: color, color }}
+                >{meta?.emoji || '✨'}</span>
+                <span className="text-[9px] font-bold text-[var(--text-secondary)] leading-none whitespace-nowrap">{meta?.label || 'All'}</span>
+              </button>
+            )
+          })}
+          <button
+            onClick={() => setActiveCategory(activeCategory === 'free' ? 'all' : 'free')}
+            aria-pressed={activeCategory === 'free'}
+            className="shrink-0 flex flex-col items-center gap-1 cursor-pointer"
+          >
+            <span
+              className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-[17px] border-2 transition-all"
+              style={activeCategory === 'free'
+                ? { background: '#BA7517', borderColor: '#BA7517', color: '#fff' }
+                : { background: 'var(--bg-secondary)', borderColor: '#BA7517', color: '#BA7517' }}
+            >🏷</span>
+            <span className="text-[9px] font-bold text-[var(--text-secondary)] leading-none">Free</span>
+          </button>
+        </div>
+
         {isLoading ? (
           <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">Loading guides</span>

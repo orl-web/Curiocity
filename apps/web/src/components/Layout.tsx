@@ -16,6 +16,12 @@ export default function Layout() {
         <path d="M9 4v13M13 7v13"/>
       </svg>
     )},
+    { to: '/compass', labelKey: 'nav.compass' as const, icon: (active: boolean) => (
+      <svg aria-hidden="true" viewBox="0 0 22 22" fill="none" stroke={active ? 'var(--color-primary)' : 'currentColor'} strokeWidth="1.5" className="w-[22px] h-[22px]">
+        <circle cx="11" cy="11" r="8.25"/>
+        <path d="M14.4 7.6l-1.95 4.45-4.45 1.95 1.95-4.45z" fill={active ? 'var(--color-primary)' : 'currentColor'} stroke="none"/>
+      </svg>
+    )},
     { to: '/profile', labelKey: 'nav.profile' as const, icon: (active: boolean) => (
       <svg aria-hidden="true" viewBox="0 0 22 22" fill="none" stroke={active ? 'var(--color-primary)' : 'currentColor'} strokeWidth="1.5" className="w-[22px] h-[22px]">
         <circle cx="11" cy="8" r="3.5"/>

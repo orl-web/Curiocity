@@ -2,6 +2,7 @@ export const en = {
   // Nav
   'nav.explore': 'Explore',
   'nav.map': 'Map',
+  'nav.compass': 'Compass',
   'nav.profile': 'Profile',
   // Common
   'common.save': 'Save',

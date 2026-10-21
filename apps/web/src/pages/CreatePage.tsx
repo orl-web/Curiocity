@@ -22,6 +22,9 @@ export default function CreatePage() {
   const [newStop, setNewStop] = useState('')
   const [duration, setDuration] = useState('')
   const [distance, setDistance] = useState('')
+  // Deliberate opt-out: every guide should carry duration & distance unless the
+  // creator explicitly chooses to publish without them.
+  const [skipStats, setSkipStats] = useState(false)
   const [ticketCost, setTicketCost] = useState('')
   const [mealCost, setMealCost] = useState('')
   const [transportCost, setTransportCost] = useState('')
@@ -266,6 +269,7 @@ export default function CreatePage() {
 
   const handlePublish = async () => {
     if (!title || !city || !category) return
+    if (!skipStats && (!duration.trim() || !distance.trim())) return
     setIsPublishing(true)
     setPublishError(null)
     try {
@@ -279,8 +283,8 @@ export default function CreatePage() {
         city,
         category: category.toLowerCase(),
         description,
-        duration,
-        distance,
+        duration: skipStats ? undefined : duration.trim() || undefined,
+        distance: skipStats ? undefined : distance.trim() || undefined,
         priceModel: accessModel,
         coverImageUrl: coverImageUrl || undefined,
         stubImageUrl: stubImageUrl || undefined,
@@ -627,7 +631,8 @@ export default function CreatePage() {
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 1h 30m"
               aria-label="Duration"
-              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
+              disabled={skipStats}
+              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] disabled:opacity-45"
             />
             <label htmlFor="guide-distance" className="sr-only">Distance</label>
             <input
@@ -637,9 +642,19 @@ export default function CreatePage() {
               onChange={(e) => setDistance(e.target.value)}
               placeholder="e.g. 2.5km"
               aria-label="Distance"
-              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)]"
+              disabled={skipStats}
+              className="flex-1 bg-[var(--bg-secondary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] disabled:opacity-45"
             />
           </div>
+          <label className="flex items-center gap-2 mt-0.5 text-[12px] text-[var(--text-secondary)] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={skipStats}
+              onChange={(e) => setSkipStats(e.target.checked)}
+              className="accent-[var(--color-primary)] cursor-pointer"
+            />
+            I don't know yet — create without duration &amp; distance
+          </label>
         </div>
 
         {/* Costs */}
@@ -794,7 +809,7 @@ export default function CreatePage() {
         )}
         <button
           onClick={handlePublish}
-          disabled={isPublishing || !title || !city || !category || stops.length < 2}
+          disabled={isPublishing || !title || !city || !category || stops.length < 2 || (!skipStats && (!duration.trim() || !distance.trim()))}
           className="w-full py-3 rounded-lg bg-[var(--color-primary)] text-white text-sm font-bold border-none cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg aria-hidden="true" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">

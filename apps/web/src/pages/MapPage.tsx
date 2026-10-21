@@ -72,9 +72,11 @@ function parseDurationMinutes(duration?: string | null): number | null {
   return minutes > 0 ? Math.round(minutes) : null
 }
 
+const PRICE_LABELS: Record<string, string> = { all: 'Any price', free: 'Free', paid: 'Paid', ad: 'Ads' }
+
 // Shared by the map markers and the result count so the two can never disagree.
 // Unknown durations match only the 'all' bucket.
-function matchesFilters(g: Guide, catFilter: string, durFilter: string, timeFilter: TimeSlot[]): boolean {
+function matchesFilters(g: Guide, catFilter: string, durFilter: string, timeFilter: TimeSlot[], priceFilter = 'all'): boolean {
   if (catFilter !== 'all' && g.category !== catFilter) return false
   if (durFilter !== 'all') {
     const m = parseDurationMinutes(g.duration)
@@ -87,7 +89,21 @@ function matchesFilters(g: Guide, catFilter: string, durFilter: string, timeFilt
     const gSlots = g.timeSlots || []
     if (gSlots.length > 0 && !gSlots.some((s) => timeFilter.includes(s))) return false
   }
+  if (priceFilter !== 'all' && (g.priceModel || 'free') !== priceFilter) return false
   return true
+}
+
+// Distance bucket: guide counts when its nearest stop is within distKmLimit of
+// the user. No GPS fix, an 'any' limit, or a guide with no plottable stops all
+// count as a match so the filter never blanks the map by accident.
+function withinDistance(g: Guide, distFilter: string, userLat: number | null, userLng: number | null): boolean {
+  if (distFilter === 'any') return true
+  if (userLat == null || userLng == null) return true
+  const stops = positionedStops(g)
+  if (stops.length === 0) return true
+  const anchor = nearestStop(stops, userLat, userLng)
+  const km = haversineKm(userLat, userLng, Number(anchor.stop.latitude), Number(anchor.stop.longitude))
+  return km <= Number(distFilter)
 }
 
 // Stops that can actually be plotted, preserving their original index so
@@ -111,7 +127,7 @@ function nearestStop(stops: ReturnType<typeof positionedStops>, lat: number | nu
   return best
 }
 
-export default function MapPage() {
+export default function MapPage({ initialSurprise = false }: { initialSurprise?: boolean }) {
   const navigate = useNavigate()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<L.Map | null>(null)
@@ -126,6 +142,10 @@ export default function MapPage() {
   const [catFilter, setCatFilter] = useState<string>('all')
   const [durFilter, setDurFilter] = useState<string>('all')
   const [timeFilter, setTimeFilter] = useState<TimeSlot[]>([])
+  const [distFilter, setDistFilter] = useState<string>('any')
+  const [priceFilter, setPriceFilter] = useState<string>('all')
+  // Which of the 5 map filter icon panels is open (expands toward screen center).
+  const [openFilterPanel, setOpenFilterPanel] = useState<'tema' | 'distanza' | 'tempo' | 'costo' | 'orario' | null>(null)
   const [loading, setLoading] = useState(true)
   const [geoError, setGeoError] = useState<string | null>(null)
   const [showSearch, setShowSearch] = useState(false)
@@ -153,10 +173,11 @@ export default function MapPage() {
   const [surpriseDur, setSurpriseDur] = useState('all')
   const [surpriseTime, setSurpriseTime] = useState<TimeSlot[]>([])
   const [surpriseDist, setSurpriseDist] = useState('any')
+  const [surprisePrice, setSurprisePrice] = useState('all')
   const [surpriseTarget, setSurpriseTarget] = useState<{ guide: Guide; stop: GuideStop; index: number } | null>(null)
   const [surpriseRevealed, setSurpriseRevealed] = useState(false)
   const [surpriseError, setSurpriseError] = useState<string | null>(null)
-  const [openDropdown, setOpenDropdown] = useState<'cat' | 'dur' | 'time' | 'dist' | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<'cat' | 'dur' | 'time' | 'dist' | 'price' | null>(null)
   // Device compass heading in degrees clockwise from true north, null when we
   // do not have sensor access (desktop, or permission not granted on iOS).
   const { heading: deviceHeading, state: headingState, requestHeading } = useDeviceHeading(surpriseMode)
@@ -290,20 +311,16 @@ export default function MapPage() {
   // Pick a random guide from the surprise filters. Distance needs a GPS fix;
   // without one the distance filter is ignored rather than blocking the roll.
   const rollSurprise = useCallback(() => {
-    const distKm = surpriseDist === 'any' ? null : Number(surpriseDist)
     const pool = nearbyGuides
-      .filter((g) => matchesFilters(g, surpriseCat, surpriseDur, surpriseTime))
+      .filter((g) => matchesFilters(g, surpriseCat, surpriseDur, surpriseTime, surprisePrice))
+      .filter((g) => withinDistance(g, surpriseDist, userLat, userLng))
       .map((g) => {
         const stops = positionedStops(g)
         if (stops.length === 0) return null
         const anchor = nearestStop(stops, userLat, userLng)
-        const km = userLat != null && userLng != null
-          ? haversineKm(userLat, userLng, Number(anchor.stop.latitude), Number(anchor.stop.longitude))
-          : null
-        return { guide: g, stop: anchor.stop, index: anchor.index, km }
+        return { guide: g, stop: anchor.stop, index: anchor.index }
       })
-      .filter((e): e is { guide: Guide; stop: GuideStop; index: number; km: number | null } => e !== null)
-      .filter((e) => distKm == null || e.km == null || e.km <= distKm)
+      .filter((e): e is { guide: Guide; stop: GuideStop; index: number } => e !== null)
 
     if (pool.length === 0) {
       setSurpriseTarget(null)
@@ -313,7 +330,7 @@ export default function MapPage() {
     setSurpriseError(null)
     setSurpriseRevealed(false)
     setSurpriseTarget(pool[Math.floor(Math.random() * pool.length)])
-  }, [nearbyGuides, surpriseCat, surpriseDur, surpriseTime, surpriseDist, userLat, userLng])
+  }, [nearbyGuides, surpriseCat, surpriseDur, surpriseTime, surpriseDist, surprisePrice, userLat, userLng])
 
   const openSurprise = () => {
     setSurpriseMode(true)
@@ -329,6 +346,9 @@ export default function MapPage() {
     setSurpriseTarget(null)
   }
 
+  // The /compass bottom-nav route lands here with the compass overlay open.
+  useEffect(() => { if (initialSurprise) openSurprise() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const map = mapInstance.current
     const base = baseLayerRef.current
@@ -336,7 +356,7 @@ export default function MapPage() {
 
     base.clearLayers()
 
-    const filtered = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter))
+    const filtered = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter, priceFilter) && withinDistance(g, distFilter, userLat, userLng))
 
     const all: { guide: Guide; color: string; saved: boolean }[] = []
     if (showSaved) savedGuides.forEach((g) => all.push({ guide: g, color: SAVED_COLOR, saved: true }))
@@ -385,7 +405,7 @@ export default function MapPage() {
           .addTo(base).bindPopup(`<div style="font-family:system-ui;max-width:180px"><strong style="font-size:12px">📌 ${sanitizeHtml(loc.name)}</strong></div>`, { closeButton: false, offset: [0, -4] })
       })
     }
-  }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter, timeFilter, userLat, userLng])
+  }, [nearbyGuides, savedGuides, importedLocations, showSaved, showNearby, showImported, catFilter, durFilter, timeFilter, priceFilter, distFilter, userLat, userLng])
 
   // The selected guide's route lives in its own layer so it can be redrawn
   // when the active stop changes without touching the other guides.
@@ -411,7 +431,7 @@ export default function MapPage() {
     })
   }, [previewGuide, activeStopIdx])
 
-  const filteredCount = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter)).length
+  const filteredCount = nearbyGuides.filter((g) => matchesFilters(g, catFilter, durFilter, timeFilter, priceFilter) && withinDistance(g, distFilter, userLat, userLng)).length
   const previewStops = previewGuide ? positionedStops(previewGuide) : []
   const activeStopPos = previewStops.findIndex((s) => s.index === activeStopIdx)
 
@@ -492,40 +512,96 @@ export default function MapPage() {
         </button>
       </div>
 
-      {/* Filter chips — single scrollable row */}
-      <div className="absolute top-3 left-3 right-16 z-[1000]">
-        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {['all', 'food', 'architecture', 'history', 'art', 'nature', 'characters'].map((cat) => (
-            <button key={cat} onClick={() => setCatFilter(cat)}
-              className={`shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-bold border cursor-pointer transition-all ${
-                catFilter === cat ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-md' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[var(--text-secondary)] backdrop-blur-sm'
-              }`}>
-              {cat === 'all' ? 'All' : `${CATEGORY_EMOJI[cat] || ''}`}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 mt-1">
-          {DURATIONS.map((d) => (
-            <button key={d} onClick={() => setDurFilter(d)}
-              className={`px-2 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
-                durFilter === d ? 'bg-[#BA7517] border-[#BA7517] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[var(--text-secondary)] backdrop-blur-sm'
-              }`}>
-              {DUR_LABELS[d]}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 mt-1">
-          {(Object.keys(TIME_SLOT_META) as TimeSlot[]).map((t) => (
-            <button key={t} onClick={() => setTimeFilter((prev) => prev.includes(t) ? prev.filter((s) => s !== t) : [...prev, t])}
-              title={TIME_SLOT_META[t].label}
-              className={`px-2 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-all ${
-                timeFilter.includes(t) ? 'bg-[#7B61FF] border-[#7B61FF] text-white' : 'bg-white/90 dark:bg-[#1e1e1c]/90 border-black/10 dark:border-white/10 text-[var(--text-secondary)] backdrop-blur-sm'
-              }`}>
-              {TIME_SLOT_META[t].emoji}
-            </button>
-          ))}
-        </div>
+      {/* 5 filter icons — each opens a panel that expands toward screen center */}
+      <div className="absolute top-3 left-3 z-[1000] flex gap-2">
+        {([
+          { id: 'tema' as const, emoji: '🎨', active: catFilter !== 'all', color: 'var(--color-primary)' },
+          { id: 'distanza' as const, emoji: '📏', active: distFilter !== 'any', color: '#378ADD' },
+          { id: 'tempo' as const, emoji: '⏱', active: durFilter !== 'all', color: '#BA7517' },
+          { id: 'costo' as const, emoji: '💰', active: priceFilter !== 'all', color: '#E24B4A' },
+          { id: 'orario' as const, emoji: '🕐', active: timeFilter.length > 0, color: '#7B61FF' },
+        ]).map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setOpenFilterPanel(openFilterPanel === f.id ? null : f.id)}
+            aria-label={f.id}
+            aria-expanded={openFilterPanel === f.id}
+            className="w-10 h-10 rounded-full shadow-lg flex items-center justify-center cursor-pointer backdrop-blur-sm text-[15px] transition-all"
+            style={f.active
+              ? { background: f.color, boxShadow: `0 2px 10px ${f.color}66, 0 0 0 2px #fff` }
+              : { background: 'rgba(26,26,24,.8)' }}
+          >
+            {f.emoji}
+          </button>
+        ))}
       </div>
+
+      {/* Filter panel — centered under the icons, click-catcher closes it */}
+      {openFilterPanel && (
+        <>
+          <div className="fixed inset-0 z-[999]" onClick={() => setOpenFilterPanel(null)} />
+          <div className="fixed inset-x-0 top-[64px] z-[1000] flex justify-center px-3 pointer-events-none">
+            <div role="listbox" className="pointer-events-auto w-full max-w-[280px] rounded-2xl border border-white/12 bg-[#1a1a18] shadow-2xl overflow-hidden">
+              {openFilterPanel === 'tema' && (
+                <>
+                  {[{ value: 'all', label: 'All themes', emoji: '✨' }, ...['food', 'architecture', 'history', 'art', 'nature', 'characters'].map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1), emoji: CATEGORY_EMOJI[c] || '📍' }))].map((o) => (
+                    <button key={o.value} role="option" aria-selected={catFilter === o.value} onClick={() => { setCatFilter(o.value); setOpenFilterPanel(null) }}
+                      className={`w-full px-4 py-2.5 text-left text-[13px] font-bold flex items-center justify-between gap-2 transition-colors ${catFilter === o.value ? 'bg-[var(--color-primary)] text-white' : 'text-white/85 hover:bg-white/10'}`}>
+                      <span className="flex items-center gap-2.5"><span aria-hidden="true">{o.emoji}</span>{o.label}</span>
+                      {catFilter === o.value && <span aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              {openFilterPanel === 'distanza' && (
+                <>
+                  {[{ value: 'any', label: 'Any distance' }, { value: '1', label: 'Within 1 km' }, { value: '2', label: 'Within 2 km' }, { value: '5', label: 'Within 5 km' }, { value: '10', label: 'Within 10 km' }].map((o) => (
+                    <button key={o.value} role="option" aria-selected={distFilter === o.value} onClick={() => { setDistFilter(o.value); setOpenFilterPanel(null) }}
+                      className={`w-full px-4 py-2.5 text-left text-[13px] font-bold flex items-center justify-between gap-2 transition-colors ${distFilter === o.value ? 'bg-[#378ADD] text-white' : 'text-white/85 hover:bg-white/10'}`}>
+                      <span>{o.label}</span>
+                      {distFilter === o.value && <span aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              {openFilterPanel === 'tempo' && (
+                <>
+                  {DURATIONS.map((d) => (
+                    <button key={d} role="option" aria-selected={durFilter === d} onClick={() => { setDurFilter(d); setOpenFilterPanel(null) }}
+                      className={`w-full px-4 py-2.5 text-left text-[13px] font-bold flex items-center justify-between gap-2 transition-colors ${durFilter === d ? 'bg-[#BA7517] text-white' : 'text-white/85 hover:bg-white/10'}`}>
+                      <span>{DUR_LABELS[d]}</span>
+                      {durFilter === d && <span aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              {openFilterPanel === 'costo' && (
+                <>
+                  {(Object.keys(PRICE_LABELS) as string[]).map((p) => (
+                    <button key={p} role="option" aria-selected={priceFilter === p} onClick={() => { setPriceFilter(p); setOpenFilterPanel(null) }}
+                      className={`w-full px-4 py-2.5 text-left text-[13px] font-bold flex items-center justify-between gap-2 transition-colors ${priceFilter === p ? 'bg-[#E24B4A] text-white' : 'text-white/85 hover:bg-white/10'}`}>
+                      <span>{PRICE_LABELS[p]}</span>
+                      {priceFilter === p && <span aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              {openFilterPanel === 'orario' && (
+                <>
+                  {(Object.keys(TIME_SLOT_META) as TimeSlot[]).map((t) => (
+                    <button key={t} role="option" aria-selected={timeFilter.includes(t)}
+                      onClick={() => setTimeFilter((prev) => prev.includes(t) ? prev.filter((s) => s !== t) : [...prev, t])}
+                      className={`w-full px-4 py-2.5 text-left text-[13px] font-bold flex items-center justify-between gap-2 transition-colors ${timeFilter.includes(t) ? 'bg-[#7B61FF] text-white' : 'text-white/85 hover:bg-white/10'}`}>
+                      <span className="flex items-center gap-2.5"><span aria-hidden="true">{TIME_SLOT_META[t].emoji}</span>{TIME_SLOT_META[t].label}</span>
+                      {timeFilter.includes(t) && <span aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Layers panel — toggleable */}
       {showLayers && (
@@ -647,7 +723,7 @@ export default function MapPage() {
         const distLabel = distKm == null ? null : distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`
         const targetColor = surpriseTarget ? (CATEGORY_COLORS[surpriseTarget.guide.category] || '#1D9E75') : '#1D9E75'
 
-        const dropdown = (id: 'cat' | 'dur' | 'time' | 'dist', label: string, valueLabel: string, options: { value: string; label: string; onPick: () => void; active: boolean }[]) => (
+        const dropdown = (id: 'cat' | 'dur' | 'time' | 'dist' | 'price', label: string, valueLabel: string, options: { value: string; label: string; onPick: () => void; active: boolean }[]) => (
           <div key={id} className="relative">
             <button
               onClick={() => setOpenDropdown(openDropdown === id ? null : id)}
@@ -705,6 +781,12 @@ export default function MapPage() {
           { value: '5', label: 'Within 5 km', active: surpriseDist === '5', onPick: () => { setSurpriseDist('5'); rollSurprise() } },
           { value: '10', label: 'Within 10 km', active: surpriseDist === '10', onPick: () => { setSurpriseDist('10'); rollSurprise() } },
         ]
+        const priceOptions = (Object.keys(PRICE_LABELS) as string[]).map((p) => ({
+          value: p,
+          label: PRICE_LABELS[p],
+          active: surprisePrice === p,
+          onPick: () => { setSurprisePrice(p); rollSurprise() },
+        }))
 
         return (
           <div className="fixed inset-0 z-[1300] flex flex-col text-white"
@@ -731,6 +813,7 @@ export default function MapPage() {
               {dropdown('dur', 'Duration', DUR_LABELS[surpriseDur], durOptions)}
               {dropdown('time', 'Time', surpriseTime.length === 0 ? 'All' : surpriseTime.map((t) => TIME_SLOT_META[t].emoji).join(' '), timeOptions)}
               {dropdown('dist', 'Distance', surpriseDist === 'any' ? 'Any' : `< ${surpriseDist} km`, distOptions)}
+              {dropdown('price', 'Cost', surprisePrice === 'all' ? 'Any' : PRICE_LABELS[surprisePrice], priceOptions)}
             </div>
 
             {surpriseError && (

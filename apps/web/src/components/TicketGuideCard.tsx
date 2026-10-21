@@ -86,15 +86,16 @@ export default function TicketGuideCard({ guide, onClick, actions }: Props) {
             </div>
           )}
 
-          {/* Stats */}
+          {/* Stats — duration and distance always occupy their slots so the
+              layout stays stable even for guides created without them. */}
           <div className="flex gap-4 items-baseline mt-2.5">
-            {guide.duration && <span className="text-[22px] font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>{guide.duration.replace(/\s+/g, '')}</span>}
-            {km && (
-              <span>
-                <span className="text-[22px] font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>{km}</span>
-                <span className="text-[12px] ml-0.5" style={{ opacity: 0.8 }}>km</span>
-              </span>
-            )}
+            <span className="text-[22px] font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)', opacity: guide.duration ? 1 : 0.45 }}>
+              {guide.duration ? guide.duration.replace(/\s+/g, '') : '—'}
+            </span>
+            <span>
+              <span className="text-[22px] font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)', opacity: km ? 1 : 0.45 }}>{km || '—'}</span>
+              {km && <span className="text-[12px] ml-0.5" style={{ opacity: 0.8 }}>km</span>}
+            </span>
             <span className="text-[12px]" style={{ opacity: 0.8 }}>
               {Number(guide.rating) > 0 && <>★ {Number(guide.rating).toFixed(1)}</>}
               {stopCount > 0 && <> · {stopCount} stops</>}
@@ -102,14 +103,10 @@ export default function TicketGuideCard({ guide, onClick, actions }: Props) {
           </div>
         </div>
 
-        {/* Price pill (or caller-provided actions, which take the corner) */}
-        {actions ? (
+        {/* Caller-provided actions take the top-right corner (e.g. offline ✕) */}
+        {actions && (
           <div className="absolute top-2.5 right-2.5 z-10" onClick={(e) => e.stopPropagation()}>
             {actions}
-          </div>
-        ) : (
-          <div className="absolute top-3.5 right-3.5 rounded-xl px-2.5 py-1 text-[13px] font-extrabold" style={{ background: bandInfo.textColor, color: bandInfo.gradient[0] }}>
-            {priceLabel(guide)}
           </div>
         )}
       </div>
@@ -132,11 +129,8 @@ export default function TicketGuideCard({ guide, onClick, actions }: Props) {
             <div aria-hidden="true" className="absolute inset-0" style={{ background: `linear-gradient(175deg, ${theme.color}66, ${theme.color}e0)` }} />
           </>
         )}
-        {/* Symbol grid: time band symbol + three content symbols */}
-        <div className="relative grid grid-cols-2 gap-0.5 text-[17px] leading-none" aria-hidden="true">
-          <span>{bandInfo.label === 'Morning' ? '🌅' : bandInfo.label === 'Afternoon' ? '☀️' : bandInfo.label === 'Evening' ? '🌇' : '🌙'}</span>
-          {symbols.map((s, i) => <span key={i}>{s}</span>)}
-        </div>
+        {/* Single content symbol (the mockup's one-emoji stub) */}
+        <span className="relative text-[22px] leading-none" aria-hidden="true">{symbols[0]}</span>
         <span className="relative text-[11px] font-bold">{theme.label}</span>
         <span className="relative text-[15px] font-extrabold bg-white rounded-lg px-2 py-0.5" style={{ color: theme.color }}>
           {priceLabel(guide)}

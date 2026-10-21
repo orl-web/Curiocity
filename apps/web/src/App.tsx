@@ -62,6 +62,7 @@ export default function App() {
               <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
               <Route path="/feed" element={<ProtectedRoute><FollowingPage /></ProtectedRoute>} />
               <Route path="/map" element={<MapPage />} />
+              <Route path="/compass" element={<MapPage initialSurprise />} />
               <Route path="/u/:username" element={<CreatorPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />

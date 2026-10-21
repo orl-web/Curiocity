@@ -3,6 +3,7 @@ import type { TranslationKey } from './en'
 export const fr: Partial<Record<TranslationKey, string>> = {
   'nav.explore': 'Explorer',
   'nav.map': 'Carte',
+  'nav.compass': 'Boussole',
   'nav.profile': 'Profil',
   'common.save': 'Enregistrer',
   'common.cancel': 'Annuler',
