@@ -6,6 +6,7 @@ import { eq, and, gt } from 'drizzle-orm';
 import { validateBody } from '../middleware/validate';
 import { AppError } from '../middleware/errorHandler';
 import { config } from '../config';
+import { parseGoogleMapsUrl, isGoogleMapsHost, isShortGoogleLink, type ParsedRouteStop } from '../utils/googleMapsRoute';
 
 import rateLimit from 'express-rate-limit';
 
@@ -69,16 +70,25 @@ async function geocodeWithGoogle(query: string): Promise<{ latitude: string; lon
 router.post('/', geocodeRateLimit, validateBody(geocodeSchema), async (req: Request, res: Response) => {
   const { query, city } = req.body;
   const fullQuery = city ? `${query}, ${city}` : query;
+  const result = await geocodeWithCache(fullQuery, config.GEOCODING_PROVIDER);
+  if (!result) {
+    throw AppError.notFound('Location not found');
+  }
+  res.json({ ...result, cached: result.cached === true });
+});
+
+// Cache-first lookup shared by the single and batch (route) endpoints.
+async function geocodeWithCache(fullQuery: string, provider: string): Promise<{ latitude: string; longitude: string; cached?: boolean } | null> {
   const cacheKey = fullQuery.toLowerCase().trim();
 
   const cached = await db.select().from(geocodeCache).where(and(eq(geocodeCache.query, cacheKey), gt(geocodeCache.expiresAt, new Date()))).limit(1);
   if (cached.length > 0) {
-    return res.json({ latitude: cached[0].latitude, longitude: cached[0].longitude, cached: true });
+    return { latitude: cached[0].latitude, longitude: cached[0].longitude, cached: true };
   }
 
   let result: { latitude: string; longitude: string } | null = null;
 
-  if (config.GEOCODING_PROVIDER === 'google' && config.GOOGLE_GEOCODING_API_KEY) {
+  if (provider === 'google' && config.GOOGLE_GEOCODING_API_KEY) {
     result = await geocodeWithGoogle(fullQuery);
   }
 
@@ -87,7 +97,7 @@ router.post('/', geocodeRateLimit, validateBody(geocodeSchema), async (req: Requ
   }
 
   if (!result) {
-    throw AppError.notFound('Location not found');
+    return null;
   }
 
   const expiresAt = new Date();
@@ -98,14 +108,110 @@ router.post('/', geocodeRateLimit, validateBody(geocodeSchema), async (req: Requ
     query: cacheKey,
     latitude: result.latitude,
     longitude: result.longitude,
-    provider: config.GEOCODING_PROVIDER,
+    provider,
     expiresAt,
   }).onConflictDoUpdate({
     target: geocodeCache.query,
-    set: { latitude: result.latitude, longitude: result.longitude, provider: config.GEOCODING_PROVIDER, expiresAt },
+    set: { latitude: result.latitude, longitude: result.longitude, provider, expiresAt },
   });
 
-  res.json({ ...result, cached: false });
+  return { ...result, cached: false };
+}
+
+// Resolve a short link (maps.app.goo.gl / goo.gl) to its final URL.
+// Manual redirect following keeps us from fetching arbitrary hosts (SSRF).
+const SHORT_LINK_HOSTS = new Set(['maps.app.goo.gl', 'goo.gl', 'maps.google.com', 'www.google.com']);
+
+async function resolveShortLink(rawUrl: string): Promise<string | null> {
+  let current = rawUrl.trim();
+  for (let hop = 0; hop < 5; hop++) {
+    let host: string;
+    try {
+      host = new URL(current).hostname.toLowerCase();
+    } catch {
+      return null;
+    }
+    if (!SHORT_LINK_HOSTS.has(host) && !/^(maps\.)?google\./.test(host)) return null;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(current, { redirect: 'manual', signal: controller.signal });
+      clearTimeout(timer);
+      const location = response.headers.get('location');
+      response.body?.cancel().catch(() => {});
+      if (!location) return current; // No redirect — this is the final URL
+      current = new URL(location, current).toString();
+    } catch {
+      clearTimeout(timer);
+      return null;
+    }
+  }
+  return null;
+}
+
+// Import a route from a Google Maps link: parse the stops, geocode any that
+// are place names, return the ordered list.
+const routeImportSchema = z.object({
+  url: z.string().min(10).max(2000),
+});
+
+const routeImportRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many route imports. Try again later.' },
+  keyGenerator: (req) => req.user?.userId || req.ip || 'unknown',
+});
+
+const MAX_ROUTE_STOPS = 20;
+// Nominatim's usage policy asks for ~1 request/second.
+const GEOCODE_DELAY_MS = 1100;
+
+router.post('/route', routeImportRateLimit, validateBody(routeImportSchema), async (req: Request, res: Response) => {
+  const { url } = req.body as { url: string };
+
+  if (!isGoogleMapsHost(url)) {
+    throw AppError.badRequest('Please paste a Google Maps link');
+  }
+
+  let parseTarget = url.trim();
+  if (isShortGoogleLink(parseTarget)) {
+    const resolved = await resolveShortLink(parseTarget);
+    if (!resolved) {
+      throw AppError.badRequest('Could not resolve the short link. Try copying the full link from Google Maps.');
+    }
+    parseTarget = resolved;
+  }
+
+  let stops = parseGoogleMapsUrl(parseTarget);
+  if (stops.length === 0) {
+    throw AppError.badRequest('No stops found in the link. Use a directions link with at least origin and destination.');
+  }
+
+  const truncated = stops.length > MAX_ROUTE_STOPS;
+  if (truncated) stops = stops.slice(0, MAX_ROUTE_STOPS);
+
+  const failed: string[] = [];
+  let geocoded = 0;
+  let madeNetworkCall = false;
+
+  for (let i = 0; i < stops.length; i++) {
+    const stop = stops[i];
+    if (stop.latitude != null && stop.longitude != null) continue;
+    // Space out uncached lookups to respect the provider's rate policy.
+    if (madeNetworkCall) await new Promise((resolve) => setTimeout(resolve, GEOCODE_DELAY_MS));
+    const result = await geocodeWithCache(stop.name, config.GEOCODING_PROVIDER);
+    madeNetworkCall = true;
+    if (result) {
+      stop.latitude = parseFloat(result.latitude);
+      stop.longitude = parseFloat(result.longitude);
+      if (!result.cached) geocoded++;
+    } else {
+      failed.push(stop.name);
+    }
+  }
+
+  res.json({ stops, truncated, geocoded, failed });
 });
 
 const reverseGeocodeSchema = z.object({

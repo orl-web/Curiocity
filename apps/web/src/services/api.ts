@@ -143,4 +143,18 @@ export const referrals = {
   getStats: () => api.get<{ totalReferrals: number; pendingPayouts: number }>('/referrals/stats'),
 }
 
+export const geocode = {
+  // Imports an ordered stop list from a Google Maps directions/share link.
+  // Name-only stops are geocoded server-side (Nominatim, cached).
+  routeImport: (url: string) =>
+    api.post<{
+      stops: { name: string; latitude?: number; longitude?: number }[]
+      truncated: boolean
+      geocoded: number
+      failed: string[]
+    }>('/geocode/route', { url }),
+  reverse: (lat: number, lng: number) =>
+    api.get<{ city: string | null; country: string | null }>(`/geocode/reverse?lat=${lat}&lng=${lng}`),
+}
+
 export default api

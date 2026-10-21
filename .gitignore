@@ -17,3 +17,7 @@ docs/redesings.md
 uploads/
 api-server.err
 api-server.log
+preview.err
+preview.log
+tunnel.err
+tunnel.log

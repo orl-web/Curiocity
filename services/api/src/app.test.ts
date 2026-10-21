@@ -326,3 +326,75 @@ describe('nearby distance query', () => {
     expect(res.body.guides.some((g: any) => g.title === 'Distance probe tower walk')).toBe(false);
   });
 });
+
+describe('google maps route parser', () => {
+  it('parses /dir/ path segments with inline coordinates', async () => {
+    const { parseGoogleMapsUrl } = await import('./utils/googleMapsRoute');
+    const stops = parseGoogleMapsUrl('https://www.google.com/maps/dir/41.8902,12.4922/41.8925,12.4853/data=!4m1!4i2');
+    expect(stops).toHaveLength(2);
+    expect(stops[0].latitude).toBeCloseTo(41.8902);
+    expect(stops[1].longitude).toBeCloseTo(12.4853);
+  });
+
+  it('parses api=1 query format with waypoints in order', async () => {
+    const { parseGoogleMapsUrl } = await import('./utils/googleMapsRoute');
+    const url = 'https://www.google.com/maps/dir/?api=1&origin=41.8902,12.4922&destination=41.9028,12.4964&waypoints=41.8933,12.4829%7Coptimize:true%7C41.8955,12.4772';
+    const stops = parseGoogleMapsUrl(url);
+    expect(stops.map((s) => s.latitude)).toEqual([41.8902, 41.8933, 41.8955, 41.9028]);
+  });
+
+  it('keeps place names for places without coordinates', async () => {
+    const { parseGoogleMapsUrl } = await import('./utils/googleMapsRoute');
+    const stops = parseGoogleMapsUrl('https://www.google.com/maps/dir/Colosseum/Roman+Forum/Vatican');
+    expect(stops.map((s) => s.name)).toEqual(['Colosseum', 'Roman Forum', 'Vatican']);
+    expect(stops.every((s) => s.latitude == null)).toBe(true);
+  });
+
+  it('parses a single place link with @lat,lng', async () => {
+    const { parseGoogleMapsUrl } = await import('./utils/googleMapsRoute');
+    const stops = parseGoogleMapsUrl('https://www.google.com/maps/place/Colosseum/@41.8902,12.4922,17z/data=!4m2!3d41.8902!4d12.4922');
+    expect(stops).toHaveLength(1);
+    expect(stops[0].name).toBe('Colosseum');
+    expect(stops[0].latitude).toBeCloseTo(41.8902);
+  });
+
+  it('returns empty for non-google hosts', async () => {
+    const { parseGoogleMapsUrl } = await import('./utils/googleMapsRoute');
+    expect(parseGoogleMapsUrl('https://evil.example.com/dir/A/B')).toEqual([]);
+  });
+});
+
+describe('geocode route import endpoint', () => {
+  it('rejects non-google links', async () => {
+    const res = await request(app).post('/api/geocode/route').send({ url: 'https://example.com/maps/dir/A/B' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Google Maps');
+  });
+
+  it('rejects malformed urls', async () => {
+    const res = await request(app).post('/api/geocode/route').send({ url: 'not a url' });
+    expect(res.status).toBe(400);
+  });
+
+  it('imports stops with inline coordinates without geocoding', async () => {
+    const res = await request(app)
+      .post('/api/geocode/route')
+      .send({ url: 'https://www.google.com/maps/dir/41.8902,12.4922/41.8925,12.4853' });
+    expect(res.status).toBe(200);
+    expect(res.body.stops).toHaveLength(2);
+    expect(res.body.stops[0].latitude).toBeCloseTo(41.8902);
+    expect(res.body.stops[1].latitude).toBeCloseTo(41.8925);
+    expect(res.body.truncated).toBe(false);
+    expect(res.body.failed).toEqual([]);
+  });
+
+  it('truncates routes longer than 20 stops', async () => {
+    const coords = Array.from({ length: 22 }, (_, i) => `41.8${String(i).padStart(2, '0')},12.4${String(i).padStart(2, '0')}`).join('/');
+    const res = await request(app)
+      .post('/api/geocode/route')
+      .send({ url: `https://www.google.com/maps/dir/${coords}` });
+    expect(res.status).toBe(200);
+    expect(res.body.stops).toHaveLength(20);
+    expect(res.body.truncated).toBe(true);
+  });
+});

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { guides, ai } from '../services/api'
+import { guides, ai, geocode } from '../services/api'
 import { parseGpsFile } from '../utils/gpsParsers'
 import { parseDescriptionFile } from '../utils/fileParser'
 import { useAuth } from '../hooks/useAuth'
@@ -40,6 +40,14 @@ export default function CreatePage() {
   const [gpsImportCount, setGpsImportCount] = useState(0)
   const gpsInputRef = useRef<HTMLInputElement>(null)
   const descInputRef = useRef<HTMLInputElement>(null)
+  // Google Maps link import — popup with a paste field.
+  const [showMapsModal, setShowMapsModal] = useState(false)
+  const [mapsUrl, setMapsUrl] = useState('')
+  const [isImportingLink, setIsImportingLink] = useState(false)
+  const [linkImportCount, setLinkImportCount] = useState(0)
+  // Inline editing of a stop's name.
+  const [editingStopIndex, setEditingStopIndex] = useState<number | null>(null)
+  const [editingStopName, setEditingStopName] = useState('')
   // Optional ticket + stub background photos. Guests keep a local data URL in
   // their draft; signed-in users upload immediately.
   const [coverImageUrl, setCoverImageUrl] = useState('')
@@ -146,6 +154,68 @@ export default function CreatePage() {
       setIsImportingGps(false)
       if (gpsInputRef.current) gpsInputRef.current.value = ''
     }
+  }
+
+  // Import stops from a pasted Google Maps directions/share link. The API
+  // parses the URL, resolves short links, and geocodes any place names.
+  const handleMapsImport = async () => {
+    const url = mapsUrl.trim()
+    if (!url) return
+    setIsImportingLink(true)
+    setImportError(null)
+    try {
+      const res = await geocode.routeImport(url)
+      const { stops: imported, truncated, failed } = res.data
+      if (imported.length === 0) {
+        setImportError('No stops found in that link. Paste a directions link with at least origin and destination.')
+        return
+      }
+      const mapped = imported.map((s) => ({
+        name: s.name,
+        description: '',
+        latitude: s.latitude,
+        longitude: s.longitude,
+      }))
+      setStops((prev) => [...prev, ...mapped])
+      setLinkImportCount((c) => c + mapped.length)
+      setMapsUrl('')
+      setShowMapsModal(false)
+      if (truncated) {
+        setImportError(`Route had more than 20 stops — imported the first 20.`)
+      } else if (failed.length > 0) {
+        setImportError(`Imported ${mapped.length} stops. Could not locate: ${failed.join(', ')} — they were added without coordinates.`)
+      }
+      // Pre-fill the city from the first located stop, same as GPS import.
+      const firstLocated = imported.find((s) => s.latitude != null && s.longitude != null)
+      if (!city && firstLocated) {
+        try {
+          const data = await geocode.reverse(firstLocated.latitude!, firstLocated.longitude!)
+          if (data.data.city) {
+            const parts = [data.data.city, data.data.country].filter(Boolean)
+            if (parts.length) setCity(parts.join(', '))
+          }
+        } catch {}
+      }
+    } catch (err: any) {
+      setImportError(err?.response?.data?.error || err.message || 'Failed to import the link.')
+    } finally {
+      setIsImportingLink(false)
+    }
+  }
+
+  const startEditingStop = (index: number) => {
+    setEditingStopIndex(index)
+    setEditingStopName(stops[index].name)
+  }
+
+  const saveStopName = () => {
+    if (editingStopIndex == null) return
+    const name = editingStopName.trim()
+    if (name) {
+      setStops((prev) => prev.map((s, i) => (i === editingStopIndex ? { ...s, name } : s)))
+    }
+    setEditingStopIndex(null)
+    setEditingStopName('')
   }
 
   const handleDescImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -448,20 +518,28 @@ export default function CreatePage() {
         <div className="flex flex-col gap-[5px]">
           <div className="flex items-center justify-between">
             <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Stops & curiosities</label>
-            <input
-              ref={gpsInputRef}
-              type="file"
-              accept=".gpx,.kml,.csv"
-              onChange={handleGpsImport}
-              className="hidden"
-            />
-            <button
-              onClick={() => gpsInputRef.current?.click()}
-              disabled={isImportingGps}
-              className="text-[11px] font-bold text-[var(--color-primary)] bg-transparent border-none cursor-pointer hover:underline disabled:opacity-50"
-            >
-              {isImportingGps ? 'Importing…' : `🗺 Import GPS${gpsImportCount > 0 ? ` (${gpsImportCount} added)` : ''}`}
-            </button>
+            <div className="flex items-center gap-3">
+              <input
+                ref={gpsInputRef}
+                type="file"
+                accept=".gpx,.kml,.csv"
+                onChange={handleGpsImport}
+                className="hidden"
+              />
+              <button
+                onClick={() => gpsInputRef.current?.click()}
+                disabled={isImportingGps}
+                className="text-[11px] font-bold text-[var(--color-primary)] bg-transparent border-none cursor-pointer hover:underline disabled:opacity-50"
+              >
+                {isImportingGps ? 'Importing…' : `🗺 Import GPS${gpsImportCount > 0 ? ` (${gpsImportCount} added)` : ''}`}
+              </button>
+              <button
+                onClick={() => { setImportError(null); setShowMapsModal(true) }}
+                className="text-[11px] font-bold text-[var(--color-primary)] bg-transparent border-none cursor-pointer hover:underline"
+              >
+                {`🔗 Maps link${linkImportCount > 0 ? ` (${linkImportCount} added)` : ''}`}
+              </button>
+            </div>
           </div>
           <div className="flex flex-col gap-[7px]">
             {stops.map((stop, index) => (
@@ -471,7 +549,30 @@ export default function CreatePage() {
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[13px] font-bold block truncate">{stop.name}</span>
+                    {editingStopIndex === index ? (
+                      <input
+                        type="text"
+                        value={editingStopName}
+                        onChange={(e) => setEditingStopName(e.target.value)}
+                        onBlur={saveStopName}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveStopName()
+                          if (e.key === 'Escape') { setEditingStopIndex(null); setEditingStopName('') }
+                        }}
+                        autoFocus
+                        aria-label={`Edit stop ${index + 1} name`}
+                        className="w-full text-[13px] font-bold bg-transparent border-b border-[var(--color-primary)] outline-none px-0 py-0 text-[#F27732] dark:text-[var(--text-primary)]"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditingStop(index)}
+                        aria-label={`Edit stop ${stop.name}`}
+                        className="text-[13px] font-bold block truncate text-left bg-transparent border-none cursor-text p-0 w-full text-[#F27732] dark:text-[var(--text-primary)] hover:text-[var(--color-primary)]"
+                      >
+                        {stop.name}
+                      </button>
+                    )}
                     {stop.latitude != null && stop.longitude != null && (
                       <span className="text-[10px] text-[var(--text-muted)] block">{stop.latitude.toFixed(5)}, {stop.longitude.toFixed(5)}</span>
                     )}
@@ -702,6 +803,63 @@ export default function CreatePage() {
           {isPublishing ? 'Publishing…' : isGuest ? 'Save draft on device' : 'Publish guide'}
         </button>
       </div>
+      )}
+
+      {/* Google Maps link import popup */}
+      {showMapsModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => { if (!isImportingLink) setShowMapsModal(false) }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Import route from Google Maps"
+        >
+          <div
+            className="bg-[var(--bg-secondary)] rounded-2xl p-5 w-full max-w-[380px] flex flex-col gap-3"
+            style={{ border: '1px solid var(--border-color)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-bold" style={{ fontFamily: 'var(--font-display)' }}>Import from Google Maps</h2>
+              <button
+                onClick={() => setShowMapsModal(false)}
+                disabled={isImportingLink}
+                aria-label="Close"
+                className="w-7 h-7 rounded-full flex items-center justify-center cursor-pointer text-[var(--text-muted)] hover:opacity-70 bg-transparent border-none text-[15px]"
+              >✕</button>
+            </div>
+            <p className="text-[12px] text-[var(--text-secondary)]">
+              Paste a directions or share link. Stops are detected automatically along the route.
+            </p>
+            <label htmlFor="maps-link-input" className="sr-only">Google Maps link</label>
+            <input
+              id="maps-link-input"
+              type="url"
+              value={mapsUrl}
+              onChange={(e) => setMapsUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !isImportingLink) handleMapsImport() }}
+              placeholder="https://www.google.com/maps/dir/..."
+              autoFocus
+              disabled={isImportingLink}
+              className="bg-[var(--bg-primary)] border border-black/20 dark:border-white/18 rounded-lg py-[9px] px-3 text-sm text-[#F27732] dark:text-[var(--text-primary)] outline-none focus:border-[var(--color-primary)] w-full"
+            />
+            <button
+              onClick={handleMapsImport}
+              disabled={isImportingLink || !mapsUrl.trim()}
+              className="py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-[13px] font-bold border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isImportingLink ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true"></span>
+                  Detecting stops…
+                </>
+              ) : (
+                'Import stops'
+              )}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
