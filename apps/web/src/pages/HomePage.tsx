@@ -240,12 +240,6 @@ export default function HomePage() {
 
       {/* Feed — filters live here so they scroll away; only the header sticks */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[11px] min-h-0">
-        {/* Count */}
-        <div className="px-1 text-[11px] text-[var(--text-muted)] flex items-center gap-[5px] shrink-0">
-          <div className="w-[5px] h-[5px] rounded-full" style={{ background: 'var(--color-primary)' }}></div>
-          <span aria-live="polite">{guidesList?.length || 0} {t('home.guidesAvailable')}</span>
-        </div>
-
         {/* Time-of-day tiles — single-select, band gradients from the ticket art */}
         <div className="grid grid-cols-4 gap-2 shrink-0">
           {TIME_SLOTS.map((slot) => {
